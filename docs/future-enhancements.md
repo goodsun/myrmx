@@ -1,170 +1,82 @@
-# Future Enhancements - Browser-based Hardhat Tool
+# 今後の機能拡張予定
 
-## High Priority
+## 優先度: 高
 
-### 1. Security - Malicious Contract Warning System
-**Problem**: Users might interact with potentially malicious contracts without awareness.
+### 1. コントラクトインタラクション機能
+**概要**: デプロイ済みコントラクトの関数を実行できるUI
 
-**Proposed Solution**:
-- Implement contract bytecode analysis before deployment
-- Check for known malicious patterns (selfdestruct, delegatecall to unknown addresses)
-- Display clear warnings in the UI before user confirmation
-- Maintain a local blacklist of known malicious contract patterns
+**実装内容**:
+- ABIとアドレスからコントラクトに接続
+- 読み取り専用関数の実行と結果表示
+- 状態変更関数のトランザクション実行
+- イベントログの表示
+- 最近使用したコントラクトの保存
 
-**Technical Details**:
-```javascript
-// Example implementation
-const analyzeContract = async (bytecode) => {
-  const warnings = [];
-  
-  // Check for selfdestruct
-  if (bytecode.includes('ff')) {
-    warnings.push({
-      severity: 'high',
-      message: 'Contract contains selfdestruct'
-    });
-  }
-  
-  // Check for delegatecall
-  if (bytecode.includes('f4')) {
-    warnings.push({
-      severity: 'medium',
-      message: 'Contract uses delegatecall'
-    });
-  }
-  
-  return warnings;
-};
-```
+### 2. デプロイ履歴機能
+**概要**: 過去のデプロイ情報を保存・参照
 
-## Medium Priority
+**実装内容**:
+- LocalStorageでのデプロイ履歴保存
+- ネットワーク別の履歴管理
+- 検索・フィルタリング機能
+- CSVエクスポート
 
-### 2. Error Handling and UX Enhancement
-**Problem**: Current error messages from blockchain interactions are technical and hard to understand.
+## 優先度: 中
 
-**Common Scenarios**:
-1. **Insufficient Gas**
-   - Current: "Error: insufficient funds for gas * price + value"
-   - Proposed: "Not enough ETH in your wallet. You need at least X ETH to complete this transaction."
+### 3. バッチデプロイ機能
+**概要**: 複数のコントラクトを一括デプロイ
 
-2. **Network Connection Issues**
-   - Current: "Error: Network Error"
-   - Proposed: "Connection lost. Please check your internet and MetaMask network settings."
+**実装内容**:
+- 依存関係を考慮した順序でのデプロイ
+- デプロイ間でのアドレス参照
+- 進捗表示とエラーハンドリング
 
-3. **Transaction Revert**
-   - Current: "Error: Transaction reverted"
-   - Proposed: "Transaction failed. The contract rejected your request. [Show Details]"
+### 4. カスタムネットワーク設定
+**概要**: 任意のEVMチェーンへの対応
 
-**Implementation**:
-```javascript
-const errorHandler = {
-  parseError: (error) => {
-    if (error.code === -32000) {
-      return {
-        title: 'Insufficient Funds',
-        message: 'You need more ETH to complete this transaction',
-        action: 'Add funds to your wallet'
-      };
-    }
-    // More error mappings...
-  }
-};
-```
+**実装内容**:
+- カスタムRPCエンドポイントの追加
+- チェーンID、通貨シンボルの設定
+- ネットワーク設定の保存と共有
 
-### 3. Deploy History Persistence
-**Problem**: Deploy history is lost when browser refreshes.
+## 優先度: 低
 
-**Proposed Solution**:
-- Use IndexedDB for robust storage (better than localStorage for large data)
-- Store: contract name, address, ABI, network, timestamp, transaction hash
-- Implement data export/import functionality
-- Add search and filter capabilities
+### 5. Hardhatプラグイン化
+**概要**: npmパッケージとしての配布
 
-**Schema Design**:
-```javascript
-const deployHistorySchema = {
-  id: 'auto-increment',
-  projectName: 'string',
-  contractName: 'string',
-  address: 'string',
-  network: 'number',
-  abi: 'json',
-  deployedAt: 'timestamp',
-  txHash: 'string',
-  constructorArgs: 'json'
-};
-```
+**実装内容**:
+- Hardhatタスクとしての統合
+- 設定ファイルでのカスタマイズ
+- CLIコマンドの提供
 
-## Low Priority
+### 6. テスト自動化
+**概要**: デプロイ前のテスト実行
 
-### 4. TypeScript Migration (Phase 3)
-**Benefits**:
-- Type safety for contract interactions
-- Better IDE support and autocomplete
-- Reduced runtime errors
-- Easier refactoring
+**実装内容**:
+- Hardhatテストの実行
+- テスト結果の表示
+- カバレッジレポート
 
-**Migration Strategy**:
-1. Start with type definitions for ethers.js interactions
-2. Gradually convert utility files
-3. Convert UI components last
-4. Use strict mode from the beginning
+## セキュリティ強化案
 
-**Example Type Definitions**:
-```typescript
-interface DeployResult {
-  address: string;
-  txHash: string;
-  abi: any[];
-  gasUsed: bigint;
-}
+### コントラクト分析機能
+- バイトコード解析による危険パターンの検出
+- 既知の脆弱性チェック
+- ガス使用量の推定
 
-interface ContractFunction {
-  name: string;
-  type: 'function' | 'event' | 'error';
-  inputs: Array<{
-    name: string;
-    type: string;
-  }>;
-  outputs?: Array<{
-    name: string;
-    type: string;
-  }>;
-  stateMutability?: 'view' | 'pure' | 'nonpayable' | 'payable';
-}
-```
+### 監査証跡
+- すべての操作のログ記録
+- タイムスタンプと実行者の記録
+- 改ざん防止措置
 
-## Additional Future Considerations
+## ユーザビリティ向上案
 
-### Performance Optimizations
-- Lazy loading of contract artifacts
-- Web Worker for heavy computations
-- Caching compiled contracts
+### マルチ言語対応
+- 日本語/英語の切り替え
+- エラーメッセージの翻訳
+- ドキュメントの多言語化
 
-### Advanced Features
-- Multi-signature wallet support
-- Batch transaction capabilities
-- Gas optimization suggestions
-- Integration with popular development tools (Tenderly, Etherscan)
-
-### Developer Experience
-- VS Code extension for seamless integration
-- CLI tool for automation
-- Docker containerization
-- API for programmatic access
-
-## Implementation Priority Matrix
-
-| Feature | Impact | Effort | Priority |
-|---------|--------|--------|----------|
-| Security Warnings | High | Medium | 1 |
-| Error Handling | High | Low | 2 |
-| History Persistence | Medium | Medium | 3 |
-| TypeScript | Medium | High | 4 |
-
-## Next Steps
-
-1. Create individual GitHub issues for each enhancement
-2. Gather community feedback on priorities
-3. Start with high-impact, low-effort items
-4. Establish a regular release cycle for improvements
+### テーマ機能
+- ダークモード対応
+- カスタムカラースキーム
+- アクセシビリティ向上
