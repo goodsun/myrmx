@@ -1,0 +1,148 @@
+{
+  "folders": [
+    {
+      "name": "siegeNgin",
+      "path": "."
+    },
+    {
+      "name": "🚀 Browser Deploy",
+      "path": "browser-deploy"
+    },
+    {
+      "name": "📁 Projects",
+      "path": "projects"
+    },
+    {
+      "name": "📄 Docs",
+      "path": "docs"
+    }
+  ],
+  "settings": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[javascript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[solidity]": {
+      "editor.defaultFormatter": "JuanBlanco.solidity"
+    },
+    "[markdown]": {
+      "editor.defaultFormatter": "yzhang.markdown-all-in-one"
+    },
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/artifacts": true,
+      "**/cache": true,
+      "**/coverage": true,
+      "**/.coverage_cache": true,
+      "**/typechain": true,
+      "**/typechain-types": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/artifacts": true,
+      "**/cache": true
+    },
+    "solidity.compileUsingRemoteVersion": "v0.8.19",
+    "solidity.defaultCompiler": "remote",
+    "eslint.workingDirectories": [
+      "./browser-deploy",
+      "./projects/sample-project"
+    ],
+    "terminal.integrated.env.osx": {
+      "PATH": "${workspaceFolder}/node_modules/.bin:${env:PATH}"
+    },
+    "terminal.integrated.env.linux": {
+      "PATH": "${workspaceFolder}/node_modules/.bin:${env:PATH}"
+    },
+    "terminal.integrated.env.windows": {
+      "PATH": "${workspaceFolder}\\node_modules\\.bin;${env:PATH}"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "JuanBlanco.solidity",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "yzhang.markdown-all-in-one",
+      "ritwickdey.liveserver",
+      "ms-vscode.vscode-typescript-tslint-plugin",
+      "christian-kohler.path-intellisense",
+      "formulahendry.auto-rename-tag",
+      "streetsidesoftware.code-spell-checker"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "🚀 Launch siegeNgin Server",
+        "program": "${workspaceFolder}/browser-deploy/server.js",
+        "cwd": "${workspaceFolder}/browser-deploy",
+        "env": {
+          "NODE_ENV": "development",
+          "PORT": "3000"
+        },
+        "console": "integratedTerminal"
+      },
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "🧪 Run Hardhat Tests",
+        "program": "${workspaceFolder}/projects/sample-project/node_modules/.bin/hardhat",
+        "args": ["test"],
+        "cwd": "${workspaceFolder}/projects/sample-project",
+        "console": "integratedTerminal"
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "🚀 Start siegeNgin",
+        "type": "shell",
+        "command": "npm start",
+        "options": {
+          "cwd": "${workspaceFolder}/browser-deploy"
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "📦 Install All Dependencies",
+        "type": "shell",
+        "command": "npm install && cd ../projects/sample-project && npm install",
+        "options": {
+          "cwd": "${workspaceFolder}/browser-deploy"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "🧹 Clean All Projects",
+        "type": "shell",
+        "command": "find . -name 'node_modules' -o -name 'artifacts' -o -name 'cache' | xargs rm -rf",
+        "options": {
+          "cwd": "${workspaceFolder}/projects"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "📁 Compile Sample Project",
+        "type": "shell",
+        "command": "npx hardhat compile",
+        "options": {
+          "cwd": "${workspaceFolder}/projects/sample-project"
+        },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

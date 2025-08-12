@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
 const { spawn } = require('child_process');
+const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -157,9 +158,13 @@ async function checkDependencies(projectPath) {
 // Install dependencies
 async function installDependencies(projectPath) {
     return new Promise((resolve, reject) => {
-        const install = spawn('npm', ['install', '--production'], {
+        // Use platform-specific command execution
+        const isWindows = os.platform() === 'win32';
+        const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+        const install = spawn(npmCmd, ['install', '--production'], {
             cwd: projectPath,
-            shell: true
+            stdio: 'pipe',
+            shell: false
         });
         
         let output = '';
@@ -217,9 +222,13 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         }
         
         // Run hardhat compile
-        const compile = spawn('npx', ['hardhat', 'compile'], {
+        // Use platform-specific command execution
+        const isWindows = os.platform() === 'win32';
+        const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+        const compile = spawn(npxCmd, ['hardhat', 'compile'], {
             cwd: projectPath,
-            shell: true
+            stdio: 'pipe',
+            shell: false
         });
         
         let output = '';
