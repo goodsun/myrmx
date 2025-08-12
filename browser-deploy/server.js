@@ -281,6 +281,13 @@ app.post('/api/projects/:projectName/deploy', async (req, res) => {
         
         const artifactsPath = path.join(projectPath, 'artifacts/contracts');
         
+        // Check if artifacts directory exists
+        try {
+            await fs.access(artifactsPath);
+        } catch {
+            return res.status(404).json({ success: false, error: 'No compiled contracts found. Please compile first.' });
+        }
+        
         // Find the contract artifact
         const contractDirs = await fs.readdir(artifactsPath, { withFileTypes: true });
         
@@ -292,13 +299,19 @@ app.post('/api/projects/:projectName/deploy', async (req, res) => {
                     const contractData = await fs.readFile(contractPath, 'utf8');
                     const parsed = JSON.parse(contractData);
                     
+                    // Log for debugging
+                    console.log(`Found contract ${contractName} at ${contractPath}`);
+                    console.log(`Bytecode exists: ${!!parsed.bytecode}`);
+                    console.log(`Bytecode length: ${parsed.bytecode ? parsed.bytecode.length : 0}`);
+                    
                     return res.json({
                         success: true,
                         bytecode: parsed.bytecode,
                         abi: parsed.abi
                     });
-                } catch {
+                } catch (readError) {
                     // Continue searching
+                    console.log(`Failed to read ${contractPath}: ${readError.message}`);
                 }
             }
         }

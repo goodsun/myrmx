@@ -276,13 +276,13 @@ function showConstructorParams(inputs) {
 
 // Network configurations
 const NETWORKS = {
-    1: { name: 'Ethereum Mainnet', color: 'text-red-600', warning: true },
-    5: { name: 'Goerli Testnet', color: 'text-blue-600', warning: false },
-    11155111: { name: 'Sepolia Testnet', color: 'text-blue-600', warning: false },
-    137: { name: 'Polygon Mainnet', color: 'text-purple-600', warning: true },
-    80001: { name: 'Mumbai Testnet', color: 'text-purple-600', warning: false },
-    1337: { name: 'Localhost', color: 'text-green-600', warning: false },
-    31337: { name: 'Hardhat', color: 'text-green-600', warning: false }
+    1: { name: 'Ethereum Mainnet', color: 'text-red-600', warning: true, symbol: 'ETH' },
+    5: { name: 'Goerli Testnet', color: 'text-blue-600', warning: false, symbol: 'ETH' },
+    11155111: { name: 'Sepolia Testnet', color: 'text-blue-600', warning: false, symbol: 'ETH' },
+    137: { name: 'Polygon Mainnet', color: 'text-purple-600', warning: true, symbol: 'MATIC' },
+    80001: { name: 'Mumbai Testnet', color: 'text-purple-600', warning: false, symbol: 'MATIC' },
+    1337: { name: 'Localhost', color: 'text-green-600', warning: false, symbol: 'ETH' },
+    31337: { name: 'Hardhat', color: 'text-green-600', warning: false, symbol: 'ETH' }
 };
 
 // Connect MetaMask wallet
@@ -305,22 +305,30 @@ async function connectWallet() {
         const networkInfo = NETWORKS[network.chainId] || { 
             name: `Unknown Network (Chain ID: ${network.chainId})`, 
             color: 'text-gray-600', 
-            warning: true 
+            warning: true,
+            symbol: 'ETH'
         };
         
         // Update UI with network validation
         document.getElementById('accountAddress').textContent = address;
         document.getElementById('accountBalance').textContent = ethers.utils.formatEther(balance);
+        document.getElementById('tokenSymbol').textContent = networkInfo.symbol;
         
         const networkElement = document.getElementById('networkName');
         networkElement.textContent = networkInfo.name;
         networkElement.className = `font-semibold ${networkInfo.color}`;
         
+        // Clear previous warnings
+        const existingWarning = document.querySelector('#accountInfo .bg-red-50');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
         // Show warning for mainnet
         if (networkInfo.warning) {
             const warningDiv = document.createElement('div');
             warningDiv.className = 'mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600';
-            warningDiv.innerHTML = '⚠️ Warning: You are connected to a mainnet. Real funds will be used!';
+            warningDiv.innerHTML = `⚠️ Warning: You are connected to ${networkInfo.name}. Real ${networkInfo.symbol} will be used!`;
             document.getElementById('accountInfo').appendChild(warningDiv);
         }
         
@@ -422,6 +430,12 @@ async function deployContract() {
     if (!selectedContract || !signer) return;
     
     try {
+        // Check if ethers is loaded
+        console.log('ethers object:', typeof ethers !== 'undefined' ? 'loaded' : 'not loaded');
+        if (typeof ethers !== 'undefined') {
+            console.log('ethers.ContractFactory:', ethers.ContractFactory);
+        }
+        
         showMessage('Preparing deployment...', 'info');
         
         const contract = contracts[selectedContract];
@@ -457,18 +471,39 @@ async function deployContract() {
             return;
         }
         
+        // Validate bytecode
+        if (!data.bytecode || data.bytecode === '0x') {
+            showMessage('Contract bytecode not found. Please compile the project first.', 'error');
+            return;
+        }
+        
         // Create contract factory
+        console.log('Creating contract factory...');
+        console.log('ABI:', contract.abi);
+        console.log('Bytecode length:', data.bytecode?.length);
+        console.log('Signer:', signer);
+        
         const factory = new ethers.ContractFactory(
             contract.abi,
             data.bytecode,
             signer
         );
         
+        console.log('Factory created:', factory);
+        console.log('Factory.deploy method:', factory.deploy);
+        console.log('Constructor params:', constructorParams);
+        
         // Estimate gas
         showMessage('Estimating gas...', 'info');
         let gasEstimate;
         try {
-            gasEstimate = await factory.estimateGas.deploy(...constructorParams);
+            console.log('Attempting gas estimation...');
+            console.log('factory.estimateGas:', factory.estimateGas);
+            
+            // ethers v5 uses getDeployTransaction for gas estimation
+            const deployTransaction = factory.getDeployTransaction(...constructorParams);
+            gasEstimate = await provider.estimateGas(deployTransaction);
+            
             const gasPrice = await provider.getGasPrice();
             const estimatedCost = gasEstimate.mul(gasPrice);
             
