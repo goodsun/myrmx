@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "./SVGGenerator.sol";
 
 contract FreeMintSBTWithSVG is ERC721, Ownable {
-    uint256 private _tokenIdCounter;
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
     SVGGenerator public immutable svgGenerator;
 
     // Mapping to track if an address has already minted
@@ -17,10 +19,17 @@ contract FreeMintSBTWithSVG is ERC721, Ownable {
 
     constructor(
         string memory name,
-        string memory symbol
-    ) ERC721(name, symbol) Ownable(msg.sender) {
+        string memory symbol,
+        address initialOwner
+    ) ERC721(name, symbol) {
+        // オーナーアドレスの検証（ゼロアドレスチェックのみ）
+        require(initialOwner != address(0), "Owner cannot be zero address");
+        
+        // OpenZeppelin v4ではコンストラクタでOwnerを設定
+        _transferOwnership(initialOwner);
+        
         svgGenerator = new SVGGenerator();
-        _tokenIdCounter = 1; // Start token IDs at 1
+        _tokenIdCounter.increment(); // Start token IDs at 1
     }
 
     /**
@@ -30,8 +39,8 @@ contract FreeMintSBTWithSVG is ERC721, Ownable {
         require(tx.origin == msg.sender, "Contracts cannot mint");
         require(!hasMinted[msg.sender], "Already minted");
 
-        uint256 tokenId = _tokenIdCounter;
-        _tokenIdCounter++;
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
 
         hasMinted[msg.sender] = true;
         _safeMint(msg.sender, tokenId);
@@ -42,27 +51,26 @@ contract FreeMintSBTWithSVG is ERC721, Ownable {
     /**
      * @dev Override transfer functions to make tokens non-transferable (Soul Bound)
      */
-    function _update(
+    function _beforeTokenTransfer(
+        address from,
         address to,
         uint256 tokenId,
-        address auth
-    ) internal override returns (address) {
-        address from = _ownerOf(tokenId);
-        
+        uint256 batchSize
+    ) internal override {
         // Allow minting and burning, but not transfers
         require(
             from == address(0) || to == address(0),
             "SBT: Transfer not allowed"
         );
 
-        return super._update(to, tokenId, auth);
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
     /**
      * @dev Returns the token URI with dynamically generated SVG
      */
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        _requireOwned(tokenId);
+        _requireMinted(tokenId);
         return svgGenerator.generateDataURI(tokenId);
     }
 
@@ -77,7 +85,7 @@ contract FreeMintSBTWithSVG is ERC721, Ownable {
      * @dev Get total supply of minted tokens
      */
     function totalSupply() external view returns (uint256) {
-        return _tokenIdCounter - 1;
+        return _tokenIdCounter.current() - 1;
     }
 
     /**
