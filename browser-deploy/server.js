@@ -144,6 +144,45 @@ app.get('/api/projects/:projectName/contracts', async (req, res) => {
     }
 });
 
+// Check if dependencies are installed
+async function checkDependencies(projectPath) {
+    try {
+        await fs.access(path.join(projectPath, 'node_modules'));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Install dependencies
+async function installDependencies(projectPath) {
+    return new Promise((resolve, reject) => {
+        const install = spawn('npm', ['install', '--production'], {
+            cwd: projectPath,
+            shell: true
+        });
+        
+        let output = '';
+        let errorOutput = '';
+        
+        install.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+        
+        install.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+        
+        install.on('close', (code) => {
+            if (code === 0) {
+                resolve({ success: true, output });
+            } else {
+                reject(new Error(errorOutput || 'npm install failed'));
+            }
+        });
+    });
+}
+
 // Compile project
 app.post('/api/projects/:projectName/compile', async (req, res) => {
     try {
@@ -159,6 +198,17 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         // Validate project path
         if (!await validateProjectPath(projectPath)) {
             return res.status(404).json({ success: false, error: 'Project not found' });
+        }
+        
+        // Check and install dependencies if needed
+        if (!await checkDependencies(projectPath)) {
+            try {
+                res.write(JSON.stringify({ status: 'installing', message: 'Installing dependencies...' }) + '\n');
+                await installDependencies(projectPath);
+                res.write(JSON.stringify({ status: 'installed', message: 'Dependencies installed successfully' }) + '\n');
+            } catch (error) {
+                return res.status(500).json({ success: false, error: `Failed to install dependencies: ${error.message}` });
+            }
         }
         
         // Run hardhat compile
@@ -242,6 +292,120 @@ app.post('/api/projects/:projectName/deploy', async (req, res) => {
         
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Clean project based on .gitignore
+app.post('/api/projects/:projectName/clean', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ success: false, error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        
+        // Validate project path
+        if (!await validateProjectPath(projectPath)) {
+            return res.status(404).json({ success: false, error: 'Project not found' });
+        }
+        
+        const deletedFiles = [];
+        const errors = [];
+        
+        // Common patterns to clean (based on typical .gitignore)
+        const cleanPatterns = [
+            'node_modules',
+            'artifacts',
+            'cache',
+            'coverage',
+            '.coverage_cache',
+            'typechain',
+            'typechain-types'
+        ];
+        
+        // Read .gitignore if exists
+        const gitignorePath = path.join(projectPath, '.gitignore');
+        try {
+            const gitignoreContent = await fs.readFile(gitignorePath, 'utf8');
+            const customPatterns = gitignoreContent
+                .split('\n')
+                .filter(line => line.trim() && !line.startsWith('#'))
+                .map(line => line.trim());
+            cleanPatterns.push(...customPatterns);
+        } catch {
+            // No .gitignore, use default patterns
+        }
+        
+        // Clean each pattern
+        for (const pattern of cleanPatterns) {
+            const targetPath = path.join(projectPath, pattern);
+            try {
+                await fs.access(targetPath);
+                await fs.rm(targetPath, { recursive: true, force: true });
+                deletedFiles.push(pattern);
+            } catch (error) {
+                // File/directory doesn't exist or couldn't be deleted
+                if (error.code !== 'ENOENT') {
+                    errors.push({ pattern, error: error.message });
+                }
+            }
+        }
+        
+        res.json({
+            success: true,
+            deletedFiles,
+            errors,
+            message: `Cleaned ${deletedFiles.length} items`
+        });
+        
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get project status
+app.get('/api/projects/:projectName/status', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        
+        // Validate project path
+        if (!await validateProjectPath(projectPath)) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+        
+        const status = {
+            hasDependencies: await checkDependencies(projectPath),
+            hasArtifacts: false,
+            hasCache: false,
+            cleanableSize: 0
+        };
+        
+        // Check for artifacts
+        try {
+            await fs.access(path.join(projectPath, 'artifacts'));
+            status.hasArtifacts = true;
+        } catch {}
+        
+        // Check for cache
+        try {
+            await fs.access(path.join(projectPath, 'cache'));
+            status.hasCache = true;
+        } catch {}
+        
+        res.json(status);
+        
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 

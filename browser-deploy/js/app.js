@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('compileBtn').addEventListener('click', compileProject);
     document.getElementById('refreshContracts').addEventListener('click', loadContracts);
     document.getElementById('deployBtn').addEventListener('click', deployContract);
+    document.getElementById('cleanProject').addEventListener('click', cleanProject);
 });
 
 // Load available projects
@@ -76,8 +77,87 @@ async function onProjectChange(event) {
     
     if (selectedProject) {
         await loadContracts();
+        await loadProjectStatus();
+        document.getElementById('cleanProject').classList.remove('hidden');
     } else {
         document.getElementById('contractsContainer').innerHTML = '<p class="text-gray-500">Select a project first</p>';
+        document.getElementById('cleanProject').classList.add('hidden');
+        document.getElementById('projectStatus').classList.add('hidden');
+    }
+}
+
+// Load project status
+async function loadProjectStatus() {
+    if (!selectedProject) return;
+    
+    try {
+        const response = await fetch(`/api/projects/${selectedProject}/status`);
+        const status = await response.json();
+        
+        const statusDetails = document.getElementById('statusDetails');
+        statusDetails.innerHTML = '';
+        
+        const items = [
+            { label: 'Dependencies', value: status.hasDependencies ? '✅ Installed' : '❌ Not installed' },
+            { label: 'Build artifacts', value: status.hasArtifacts ? '✅ Present' : '❌ Not built' },
+            { label: 'Cache', value: status.hasCache ? '✅ Present' : '❌ Empty' }
+        ];
+        
+        items.forEach(item => {
+            const p = document.createElement('p');
+            p.innerHTML = `<span class="text-gray-600">${item.label}:</span> ${item.value}`;
+            statusDetails.appendChild(p);
+        });
+        
+        document.getElementById('projectStatus').classList.remove('hidden');
+    } catch (error) {
+        console.error('Failed to load project status:', error);
+    }
+}
+
+// Clean project
+async function cleanProject() {
+    if (!selectedProject) return;
+    
+    const confirm = window.confirm(
+        `This will delete:\n` +
+        `- node_modules\n` +
+        `- artifacts\n` +
+        `- cache\n` +
+        `- other .gitignore entries\n\n` +
+        `Are you sure you want to clean the project "${selectedProject}"?`
+    );
+    
+    if (!confirm) return;
+    
+    showMessage('Cleaning project...', 'info');
+    
+    try {
+        const response = await fetch(`/api/projects/${selectedProject}/clean`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(`Cleaned ${data.deletedFiles.length} items`, 'success');
+            
+            // Show details
+            if (data.deletedFiles.length > 0) {
+                console.log('Deleted:', data.deletedFiles);
+            }
+            if (data.errors.length > 0) {
+                console.error('Errors:', data.errors);
+            }
+            
+            // Reload status
+            await loadProjectStatus();
+            await loadContracts();
+        } else {
+            showMessage(`Clean failed: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showMessage('Clean failed', 'error');
     }
 }
 
@@ -263,23 +343,57 @@ async function compileProject() {
         return;
     }
     
-    showMessage('Compiling...', 'info');
+    showMessage('Checking dependencies...', 'info');
     
     try {
         const response = await fetch(`/api/projects/${selectedProject}/compile`, {
             method: 'POST'
         });
         
-        const data = await response.json();
+        // Handle streaming response for installation progress
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
         
-        if (data.success) {
-            showMessage('Compilation successful!', 'success');
-            await loadContracts();
-        } else {
-            showMessage(`Compilation failed: ${data.error}`, 'error');
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        const message = JSON.parse(line);
+                        if (message.status === 'installing') {
+                            showMessage('Installing dependencies... This may take a minute.', 'info');
+                        } else if (message.status === 'installed') {
+                            showMessage('Dependencies installed!', 'success');
+                            await loadProjectStatus();
+                        }
+                    } catch {
+                        // Not JSON, might be final response
+                    }
+                }
+            }
+        }
+        
+        // Parse final response
+        if (buffer.trim()) {
+            const data = JSON.parse(buffer);
+            if (data.success) {
+                showMessage('Compilation successful!', 'success');
+                await loadContracts();
+                await loadProjectStatus();
+            } else {
+                showMessage(`Compilation failed: ${data.error}`, 'error');
+            }
         }
     } catch (error) {
         showMessage('Compilation failed', 'error');
+        console.error(error);
     }
 }
 
