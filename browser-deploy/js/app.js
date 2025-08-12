@@ -4,6 +4,7 @@ let signer;
 let selectedProject = '';
 let selectedContract = '';
 let contracts = {};
+let deployedContract = null; // Store deployed contract instance
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
@@ -18,6 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('refreshContracts').addEventListener('click', loadContracts);
     document.getElementById('deployBtn').addEventListener('click', deployContract);
     document.getElementById('cleanProject').addEventListener('click', cleanProject);
+    
+    // Contract interaction event listeners
+    document.getElementById('readTab').addEventListener('click', () => switchTab('read'));
+    document.getElementById('writeTab').addEventListener('click', () => switchTab('write'));
+    document.getElementById('eventsTab').addEventListener('click', () => switchTab('events'));
+    document.getElementById('refreshEvents').addEventListener('click', refreshEvents);
 });
 
 // Load available projects
@@ -544,6 +551,14 @@ async function deployContract() {
         
         showMessage('Contract deployed successfully!', 'success');
         
+        // Store deployed contract instance for interaction
+        deployedContract = new ethers.Contract(deployed.address, contract.abi, signer);
+        
+        // Show interaction section
+        setTimeout(() => {
+            showContractInteraction(selectedContract, deployed.address, contract.abi);
+        }, 2000);
+        
     } catch (error) {
         console.error(error);
         showMessage(`Deploy failed: ${error.message}`, 'error');
@@ -768,4 +783,265 @@ function showGasEstimateDialog(gasInfo) {
         
         document.body.appendChild(dialog);
     });
+}
+
+// Show contract interaction interface
+function showContractInteraction(contractName, address, abi) {
+    document.getElementById('interactContractName').textContent = contractName;
+    document.getElementById('interactContractAddress').textContent = address;
+    
+    // Populate read and write functions
+    populateFunctions(abi);
+    
+    // Show interaction section
+    document.getElementById('interactionSection').classList.remove('hidden');
+    
+    // Switch to read tab by default
+    switchTab('read');
+}
+
+// Populate contract functions
+function populateFunctions(abi) {
+    const readContainer = document.getElementById('readFunctions');
+    const writeContainer = document.getElementById('writeFunctions');
+    
+    readContainer.innerHTML = '';
+    writeContainer.innerHTML = '';
+    
+    abi.forEach((item, index) => {
+        if (item.type === 'function') {
+            const functionDiv = createFunctionUI(item, index);
+            
+            if (item.stateMutability === 'view' || item.stateMutability === 'pure') {
+                readContainer.appendChild(functionDiv);
+            } else {
+                writeContainer.appendChild(functionDiv);
+            }
+        }
+    });
+    
+    // Show message if no functions
+    if (readContainer.innerHTML === '') {
+        readContainer.innerHTML = '<p class="text-gray-500">No read functions available</p>';
+    }
+    if (writeContainer.innerHTML === '') {
+        writeContainer.innerHTML = '<p class="text-gray-500">No write functions available</p>';
+    }
+}
+
+// Create function UI
+function createFunctionUI(func, index) {
+    const div = document.createElement('div');
+    div.className = 'border rounded p-4 bg-gray-50';
+    
+    let inputsHtml = '';
+    if (func.inputs && func.inputs.length > 0) {
+        inputsHtml = func.inputs.map((input, i) => `
+            <div class="mt-2">
+                <label class="text-sm font-medium">${input.name || 'param' + i} (${input.type})</label>
+                <input type="text" 
+                       id="func-${index}-input-${i}" 
+                       class="w-full border rounded px-3 py-2 mt-1"
+                       placeholder="Enter ${input.type}">
+            </div>
+        `).join('');
+    }
+    
+    const isReadFunction = func.stateMutability === 'view' || func.stateMutability === 'pure';
+    const buttonText = isReadFunction ? 'Query' : 'Execute';
+    const buttonClass = isReadFunction ? 'bg-blue-500 hover:bg-blue-600' : 'bg-orange-500 hover:bg-orange-600';
+    
+    div.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <h4 class="font-semibold">${func.name}</h4>
+            ${!isReadFunction ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Payable</span>' : ''}
+        </div>
+        ${inputsHtml}
+        <button onclick="executeFunction(${index}, ${isReadFunction})" 
+                class="${buttonClass} text-white px-4 py-2 rounded mt-3">
+            ${buttonText}
+        </button>
+        <div id="func-${index}-result" class="mt-3 hidden"></div>
+    `;
+    
+    return div;
+}
+
+// Execute contract function
+async function executeFunction(funcIndex, isReadFunction) {
+    if (!deployedContract) {
+        showMessage('No contract instance available', 'error');
+        return;
+    }
+    
+    const abi = deployedContract.interface.fragments;
+    const func = abi[funcIndex];
+    
+    // Collect input values
+    const inputs = [];
+    if (func.inputs && func.inputs.length > 0) {
+        for (let i = 0; i < func.inputs.length; i++) {
+            const inputElement = document.getElementById(`func-${funcIndex}-input-${i}`);
+            const value = inputElement.value.trim();
+            
+            if (!value) {
+                showMessage(`Please provide value for ${func.inputs[i].name || 'parameter ' + i}`, 'error');
+                return;
+            }
+            
+            // Parse value based on type
+            try {
+                inputs.push(parseInputValue(value, func.inputs[i].type));
+            } catch (error) {
+                showMessage(`Invalid input for ${func.inputs[i].name}: ${error.message}`, 'error');
+                return;
+            }
+        }
+    }
+    
+    try {
+        let result;
+        
+        if (isReadFunction) {
+            // Call read function
+            result = await deployedContract[func.name](...inputs);
+            
+            // Display result
+            const resultDiv = document.getElementById(`func-${funcIndex}-result`);
+            resultDiv.innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded p-3">
+                    <p class="text-sm font-semibold text-green-800">Result:</p>
+                    <p class="font-mono text-sm mt-1">${formatResult(result)}</p>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+        } else {
+            // Execute write function
+            showMessage('Sending transaction...', 'info');
+            const tx = await deployedContract[func.name](...inputs);
+            
+            showMessage('Transaction sent. Waiting for confirmation...', 'info');
+            const receipt = await tx.wait();
+            
+            // Display result
+            const resultDiv = document.getElementById(`func-${funcIndex}-result`);
+            resultDiv.innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded p-3">
+                    <p class="text-sm font-semibold text-green-800">Transaction Successful!</p>
+                    <p class="text-sm mt-1">Hash: <span class="font-mono">${receipt.transactionHash}</span></p>
+                    <p class="text-sm">Gas Used: ${receipt.gasUsed.toString()}</p>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+            
+            showMessage('Transaction confirmed!', 'success');
+            
+            // Refresh events if on events tab
+            if (!document.getElementById('eventsSection').classList.contains('hidden')) {
+                await refreshEvents();
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        showMessage(`Function call failed: ${error.message}`, 'error');
+    }
+}
+
+// Parse input value based on type
+function parseInputValue(value, type) {
+    if (type === 'address') {
+        if (!ethers.utils.isAddress(value)) {
+            throw new Error('Invalid address');
+        }
+        return value;
+    } else if (type.startsWith('uint') || type.startsWith('int')) {
+        return ethers.BigNumber.from(value);
+    } else if (type === 'bool') {
+        return value.toLowerCase() === 'true';
+    } else if (type.startsWith('bytes')) {
+        return value.startsWith('0x') ? value : '0x' + value;
+    } else if (type.includes('[]')) {
+        return value.split(',').map(v => parseInputValue(v.trim(), type.replace('[]', '')));
+    }
+    return value;
+}
+
+// Format result for display
+function formatResult(result) {
+    if (result === null || result === undefined) {
+        return 'null';
+    } else if (ethers.BigNumber.isBigNumber(result)) {
+        return result.toString();
+    } else if (typeof result === 'object') {
+        return JSON.stringify(result, null, 2);
+    }
+    return result.toString();
+}
+
+// Switch between tabs
+function switchTab(tab) {
+    // Update tab styles
+    const tabs = ['read', 'write', 'events'];
+    tabs.forEach(t => {
+        const tabButton = document.getElementById(`${t}Tab`);
+        if (t === tab) {
+            tabButton.className = 'px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600';
+        } else {
+            tabButton.className = 'px-4 py-2 font-semibold text-gray-600 hover:text-gray-800';
+        }
+    });
+    
+    // Show/hide content
+    document.getElementById('readFunctions').classList.toggle('hidden', tab !== 'read');
+    document.getElementById('writeFunctions').classList.toggle('hidden', tab !== 'write');
+    document.getElementById('eventsSection').classList.toggle('hidden', tab !== 'events');
+    
+    // Load events when switching to events tab
+    if (tab === 'events' && deployedContract) {
+        refreshEvents();
+    }
+}
+
+// Refresh event logs
+async function refreshEvents() {
+    if (!deployedContract) {
+        showMessage('No contract instance available', 'error');
+        return;
+    }
+    
+    const eventLogsContainer = document.getElementById('eventLogs');
+    eventLogsContainer.innerHTML = '<p class="text-gray-500">Loading events...</p>';
+    
+    try {
+        // Get all events from the contract
+        const filter = deployedContract.filters;
+        const events = await deployedContract.queryFilter(filter);
+        
+        if (events.length === 0) {
+            eventLogsContainer.innerHTML = '<p class="text-gray-500">No events found</p>';
+            return;
+        }
+        
+        // Display events
+        eventLogsContainer.innerHTML = events.map((event, index) => `
+            <div class="border rounded p-3 bg-gray-50">
+                <div class="flex justify-between items-start mb-2">
+                    <h5 class="font-semibold">${event.event}</h5>
+                    <span class="text-xs text-gray-500">Block #${event.blockNumber}</span>
+                </div>
+                <div class="text-sm space-y-1">
+                    ${Object.entries(event.args || {})
+                        .filter(([key]) => isNaN(key)) // Filter out numeric keys
+                        .map(([key, value]) => `
+                            <p><span class="font-medium">${key}:</span> ${formatResult(value)}</p>
+                        `).join('')}
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Tx: ${event.transactionHash.substring(0, 10)}...</p>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error(error);
+        eventLogsContainer.innerHTML = `<p class="text-red-500">Failed to load events: ${error.message}</p>`;
+    }
 }

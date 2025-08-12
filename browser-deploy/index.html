@@ -93,6 +93,52 @@
             </div>
         </div>
         
+        <!-- Contract Interaction Section -->
+        <div id="interactionSection" class="bg-white rounded-lg shadow-md p-6 hidden">
+            <h3 class="font-semibold mb-4">Contract Interaction</h3>
+            
+            <!-- Contract Info -->
+            <div class="mb-4 p-3 bg-gray-50 rounded">
+                <p class="text-sm text-gray-600">Contract: <span id="interactContractName" class="font-semibold"></span></p>
+                <p class="text-sm text-gray-600">Address: <span id="interactContractAddress" class="font-mono text-xs"></span></p>
+            </div>
+            
+            <!-- Function Tabs -->
+            <div class="mb-4 border-b">
+                <button id="readTab" class="px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600">
+                    Read Functions
+                </button>
+                <button id="writeTab" class="px-4 py-2 font-semibold text-gray-600 hover:text-gray-800">
+                    Write Functions
+                </button>
+                <button id="eventsTab" class="px-4 py-2 font-semibold text-gray-600 hover:text-gray-800">
+                    Events
+                </button>
+            </div>
+            
+            <!-- Read Functions -->
+            <div id="readFunctions" class="space-y-4">
+                <!-- Read functions will be dynamically added here -->
+            </div>
+            
+            <!-- Write Functions -->
+            <div id="writeFunctions" class="space-y-4 hidden">
+                <!-- Write functions will be dynamically added here -->
+            </div>
+            
+            <!-- Events -->
+            <div id="eventsSection" class="hidden">
+                <div class="mb-4">
+                    <button id="refreshEvents" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        🔄 Refresh Events
+                    </button>
+                </div>
+                <div id="eventLogs" class="space-y-2 max-h-96 overflow-y-auto">
+                    <!-- Event logs will be displayed here -->
+                </div>
+            </div>
+        </div>
+        
         <!-- Error/Status Messages -->
         <div id="messageContainer" class="fixed bottom-4 right-4 max-w-md">
         </div>
