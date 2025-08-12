@@ -1216,29 +1216,40 @@ let deployedAddresses = {};
 let currentDeploymentStep = 0;
 
 async function checkDeploymentConfig() {
-    if (!selectedProject) return;
+    if (!selectedProject) {
+        console.log('No project selected');
+        return;
+    }
+    
+    console.log('Checking deployment config for project:', selectedProject);
     
     try {
         const response = await fetch(`/api/projects/${selectedProject}/deploy-config`);
         const data = await response.json();
         
+        console.log('Deploy config response:', data);
+        
         if (data.success && data.hasConfig) {
             deploymentConfig = data.config;
+            console.log('Complex deployment config found, showing UI');
             showComplexDeploymentUI();
         } else {
             deploymentConfig = null;
+            console.log('No complex deployment config found');
             hideComplexDeploymentUI();
         }
     } catch (error) {
         console.error('Failed to check deployment config:', error);
         deploymentConfig = null;
+        hideComplexDeploymentUI();
     }
 }
 
 function showComplexDeploymentUI() {
     // Hide normal deploy button and show complex deployment UI
     const deployBtn = document.getElementById('deployBtn');
-    const contractSelect = document.getElementById('contractSelect');
+    const contractsContainer = document.getElementById('contractsContainer');
+    const contractsList = document.getElementById('contractsList');
     
     // Create complex deployment UI if it doesn't exist
     let complexDeployUI = document.getElementById('complexDeployUI');
@@ -1257,7 +1268,13 @@ function showComplexDeploymentUI() {
                 Reset
             </button>
         `;
-        contractSelect.parentNode.insertBefore(complexDeployUI, contractSelect.nextSibling);
+        // Insert after contracts list
+        if (contractsList) {
+            contractsList.parentNode.insertBefore(complexDeployUI, contractsList.nextSibling);
+        } else {
+            // Fallback: insert after deploy button
+            deployBtn.parentNode.insertBefore(complexDeployUI, deployBtn.nextSibling);
+        }
         
         // Add event listeners
         document.getElementById('startComplexDeploy').addEventListener('click', startComplexDeployment);
@@ -1265,9 +1282,8 @@ function showComplexDeploymentUI() {
     }
     
     // Hide normal deployment controls
-    deployBtn.style.display = 'none';
-    contractSelect.style.display = 'none';
-    contractSelect.previousElementSibling.style.display = 'none'; // Hide label
+    if (deployBtn) deployBtn.style.display = 'none';
+    if (contractsList) contractsList.style.display = 'none';
     
     // Show deployment steps
     renderDeploymentSteps();
@@ -1280,9 +1296,11 @@ function hideComplexDeploymentUI() {
     }
     
     // Show normal deployment controls
-    document.getElementById('deployBtn').style.display = '';
-    document.getElementById('contractSelect').style.display = '';
-    document.getElementById('contractSelect').previousElementSibling.style.display = '';
+    const deployBtn = document.getElementById('deployBtn');
+    const contractsList = document.getElementById('contractsList');
+    
+    if (deployBtn) deployBtn.style.display = '';
+    if (contractsList) contractsList.style.display = '';
 }
 
 function renderDeploymentSteps() {
@@ -1432,9 +1450,9 @@ function showDeploymentSummary() {
     alert(`Deployment Complete!\n\nDeployed Contracts:\n${summary}`);
 }
 
-// Update project change handler to check for deploy config
+// Extend project change handler to check for deploy config
 const originalOnProjectChange = onProjectChange;
-async function onProjectChange() {
-    await originalOnProjectChange();
+onProjectChange = async function(event) {
+    await originalOnProjectChange.call(this, event);
     await checkDeploymentConfig();
-}
+};
