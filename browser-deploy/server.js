@@ -303,7 +303,7 @@ async function listDirectoryContents(dirPath, prefix = '') {
 app.post('/api/projects/:projectName/compile', async (req, res) => {
     try {
         const { projectName } = req.params;
-        const { useNpmScript } = req.body; // オプション: npm scriptを使うか
+        const { useNpmScript, sharedContracts } = req.body; // オプション: npm scriptを使うか, 共有コントラクト
         
         // Validate project name
         if (!validateProjectName(projectName)) {
@@ -315,6 +315,35 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         // Validate project path
         if (!await validateProjectPath(projectPath)) {
             return res.status(404).json({ success: false, error: 'Project not found' });
+        }
+        
+        // Handle shared contracts if specified
+        if (sharedContracts && Array.isArray(sharedContracts)) {
+            console.log('Processing shared contracts:', sharedContracts);
+            const contractsDir = path.join(projectPath, 'contracts');
+            
+            for (const shared of sharedContracts) {
+                try {
+                    // Expected format: { from: 'twin-contracts/contracts/SVGGenerator.sol', name: 'SVGGenerator.sol' }
+                    const sourcePath = path.join(__dirname, '../projects', shared.from);
+                    const destPath = path.join(contractsDir, shared.name || path.basename(shared.from));
+                    
+                    // Check if source exists
+                    await fs.access(sourcePath);
+                    
+                    // Copy the contract
+                    const content = await fs.readFile(sourcePath, 'utf8');
+                    await fs.writeFile(destPath, content);
+                    
+                    console.log(`Copied shared contract: ${shared.from} -> ${shared.name || path.basename(shared.from)}`);
+                } catch (error) {
+                    console.error(`Failed to copy shared contract ${shared.from}:`, error.message);
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: `Failed to copy shared contract ${shared.from}: ${error.message}` 
+                    });
+                }
+            }
         }
         
         // Set headers for streaming response

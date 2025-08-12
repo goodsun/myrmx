@@ -64,8 +64,23 @@
                 <button id="compileBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2">
                     📁 Compile
                 </button>
-                <button id="refreshContracts" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                <button id="refreshContracts" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 mr-2">
                     🔄 Refresh Contracts
+                </button>
+                <button id="manageSharedBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                    🔗 Shared Contracts
+                </button>
+            </div>
+            
+            <!-- Shared Contracts Dialog -->
+            <div id="sharedContractsDialog" class="hidden mb-4 p-4 bg-purple-50 rounded-lg">
+                <h4 class="font-semibold mb-2">Manage Shared Contracts</h4>
+                <p class="text-sm text-gray-600 mb-3">Import contracts from other projects before compilation.</p>
+                <div id="sharedContractsList" class="space-y-2 mb-3">
+                    <!-- Shared contracts will be listed here -->
+                </div>
+                <button id="addSharedContract" class="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600 text-sm">
+                    + Add Shared Contract
                 </button>
             </div>
             

@@ -5,6 +5,7 @@ let selectedProject = '';
 let selectedContract = '';
 let contracts = {};
 let deployedContract = null; // Store deployed contract instance
+let sharedContracts = []; // Store shared contracts configuration
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
@@ -20,6 +21,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('deployBtn').addEventListener('click', deployContract);
     document.getElementById('cleanProject').addEventListener('click', cleanProject);
     document.getElementById('createProject').addEventListener('click', createNewProject);
+    
+    // Shared contracts event listeners
+    document.getElementById('manageSharedBtn').addEventListener('click', toggleSharedContractsDialog);
+    document.getElementById('addSharedContract').addEventListener('click', addSharedContract);
     
     // Contract interaction event listeners
     document.getElementById('readTab').addEventListener('click', () => switchTab('read'));
@@ -365,7 +370,13 @@ async function compileProject() {
     
     try {
         const response = await fetch(`/api/projects/${selectedProject}/compile`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sharedContracts: sharedContracts
+            })
         });
         
         // Handle streaming response for installation progress
@@ -1105,3 +1116,96 @@ async function refreshEvents() {
         eventLogsContainer.innerHTML = `<p class="text-red-500">Failed to load events: ${error.message}</p>`;
     }
 }
+
+// Shared Contracts Management
+function toggleSharedContractsDialog() {
+    const dialog = document.getElementById('sharedContractsDialog');
+    dialog.classList.toggle('hidden');
+    
+    if (!dialog.classList.contains('hidden')) {
+        renderSharedContracts();
+    }
+}
+
+function renderSharedContracts() {
+    const container = document.getElementById('sharedContractsList');
+    
+    if (sharedContracts.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm">No shared contracts configured</p>';
+        return;
+    }
+    
+    container.innerHTML = sharedContracts.map((contract, index) => `
+        <div class="flex items-center justify-between p-2 bg-white rounded border">
+            <div class="flex-1">
+                <p class="font-medium text-sm">${contract.name || contract.from.split('/').pop()}</p>
+                <p class="text-xs text-gray-600">From: ${contract.from}</p>
+            </div>
+            <button onclick="removeSharedContract(${index})" class="text-red-500 hover:text-red-700 px-2">
+                ×
+            </button>
+        </div>
+    `).join('');
+}
+
+async function addSharedContract() {
+    try {
+        // Get list of all projects
+        const response = await fetch('/api/projects');
+        const data = await response.json();
+        const projects = data.projects.filter(p => p !== selectedProject);
+        
+        if (projects.length === 0) {
+            showMessage('No other projects available to import from', 'warning');
+            return;
+        }
+        
+        // Show project selection dialog
+        const sourceProject = prompt(`Select source project:\n${projects.map((p, i) => `${i+1}. ${p}`).join('\n')}\n\nEnter project number:`);
+        
+        if (!sourceProject || isNaN(sourceProject) || sourceProject < 1 || sourceProject > projects.length) {
+            return;
+        }
+        
+        const projectName = projects[parseInt(sourceProject) - 1];
+        
+        // Get contracts from selected project
+        const contractsResponse = await fetch(`/api/projects/${projectName}/contracts`);
+        const contractsData = await contractsResponse.json();
+        const contractNames = Object.keys(contractsData.contracts);
+        
+        if (contractNames.length === 0) {
+            showMessage('No compiled contracts found in selected project', 'warning');
+            return;
+        }
+        
+        // Show contract selection
+        const contractIndex = prompt(`Select contract to import:\n${contractNames.map((c, i) => `${i+1}. ${c}`).join('\n')}\n\nEnter contract number:`);
+        
+        if (!contractIndex || isNaN(contractIndex) || contractIndex < 1 || contractIndex > contractNames.length) {
+            return;
+        }
+        
+        const contractName = contractNames[parseInt(contractIndex) - 1];
+        
+        // Add to shared contracts
+        sharedContracts.push({
+            from: `${projectName}/contracts/${contractName}.sol`,
+            name: `${contractName}.sol`
+        });
+        
+        renderSharedContracts();
+        showMessage(`Added ${contractName} from ${projectName}`, 'success');
+        
+    } catch (error) {
+        showMessage('Failed to add shared contract: ' + error.message, 'error');
+    }
+}
+
+function removeSharedContract(index) {
+    sharedContracts.splice(index, 1);
+    renderSharedContracts();
+}
+
+// Expose removeSharedContract globally for onclick handler
+window.removeSharedContract = removeSharedContract;
