@@ -1209,3 +1209,232 @@ function removeSharedContract(index) {
 
 // Expose removeSharedContract globally for onclick handler
 window.removeSharedContract = removeSharedContract;
+
+// Complex deployment support
+let deploymentConfig = null;
+let deployedAddresses = {};
+let currentDeploymentStep = 0;
+
+async function checkDeploymentConfig() {
+    if (!selectedProject) return;
+    
+    try {
+        const response = await fetch(`/api/projects/${selectedProject}/deploy-config`);
+        const data = await response.json();
+        
+        if (data.success && data.hasConfig) {
+            deploymentConfig = data.config;
+            showComplexDeploymentUI();
+        } else {
+            deploymentConfig = null;
+            hideComplexDeploymentUI();
+        }
+    } catch (error) {
+        console.error('Failed to check deployment config:', error);
+        deploymentConfig = null;
+    }
+}
+
+function showComplexDeploymentUI() {
+    // Hide normal deploy button and show complex deployment UI
+    const deployBtn = document.getElementById('deployBtn');
+    const contractSelect = document.getElementById('contractSelect');
+    
+    // Create complex deployment UI if it doesn't exist
+    let complexDeployUI = document.getElementById('complexDeployUI');
+    if (!complexDeployUI) {
+        complexDeployUI = document.createElement('div');
+        complexDeployUI.id = 'complexDeployUI';
+        complexDeployUI.className = 'mt-4 p-4 bg-purple-50 rounded-lg';
+        complexDeployUI.innerHTML = `
+            <h3 class="text-lg font-semibold mb-2">Complex Deployment Configuration Detected</h3>
+            <p class="text-sm text-gray-600 mb-3">This project requires deploying ${deploymentConfig.deploymentOrder.reduce((sum, step) => sum + step.contracts.length, 0)} contracts in ${deploymentConfig.deploymentOrder.length} steps.</p>
+            <div id="deploymentSteps" class="space-y-2 mb-4"></div>
+            <button id="startComplexDeploy" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                Start Deployment Process
+            </button>
+            <button id="resetDeploy" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 ml-2">
+                Reset
+            </button>
+        `;
+        contractSelect.parentNode.insertBefore(complexDeployUI, contractSelect.nextSibling);
+        
+        // Add event listeners
+        document.getElementById('startComplexDeploy').addEventListener('click', startComplexDeployment);
+        document.getElementById('resetDeploy').addEventListener('click', resetDeployment);
+    }
+    
+    // Hide normal deployment controls
+    deployBtn.style.display = 'none';
+    contractSelect.style.display = 'none';
+    contractSelect.previousElementSibling.style.display = 'none'; // Hide label
+    
+    // Show deployment steps
+    renderDeploymentSteps();
+}
+
+function hideComplexDeploymentUI() {
+    const complexDeployUI = document.getElementById('complexDeployUI');
+    if (complexDeployUI) {
+        complexDeployUI.remove();
+    }
+    
+    // Show normal deployment controls
+    document.getElementById('deployBtn').style.display = '';
+    document.getElementById('contractSelect').style.display = '';
+    document.getElementById('contractSelect').previousElementSibling.style.display = '';
+}
+
+function renderDeploymentSteps() {
+    const stepsContainer = document.getElementById('deploymentSteps');
+    if (!stepsContainer || !deploymentConfig) return;
+    
+    stepsContainer.innerHTML = deploymentConfig.deploymentOrder.map((step, index) => {
+        const isCompleted = index < currentDeploymentStep;
+        const isActive = index === currentDeploymentStep;
+        const statusIcon = isCompleted ? '✅' : (isActive ? '🔄' : '⏳');
+        
+        return `
+            <div class="p-3 border rounded ${isActive ? 'border-purple-500 bg-purple-100' : 'border-gray-300'}">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-semibold">${statusIcon} Step ${step.step}: Deploy ${step.contracts.length} contract(s)</h4>
+                    ${isActive ? '<span class="text-sm text-purple-600">Active</span>' : ''}
+                </div>
+                <ul class="mt-2 text-sm text-gray-600">
+                    ${step.contracts.map(c => `
+                        <li class="ml-4">• ${c.name} ${deployedAddresses[c.name] ? `✅ (${deployedAddresses[c.name].substring(0, 8)}...)` : ''}</li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }).join('');
+}
+
+async function startComplexDeployment() {
+    if (!deploymentConfig || !signer) {
+        showMessage('Cannot start deployment: missing configuration or wallet', 'error');
+        return;
+    }
+    
+    try {
+        // Deploy step by step
+        for (let i = currentDeploymentStep; i < deploymentConfig.deploymentOrder.length; i++) {
+            currentDeploymentStep = i;
+            renderDeploymentSteps();
+            
+            const step = deploymentConfig.deploymentOrder[i];
+            showMessage(`Deploying step ${step.step}...`, 'info');
+            
+            // Get deployment data for this step
+            const response = await fetch(`/api/projects/${selectedProject}/deploy-step`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    step: step.step,
+                    deployedAddresses: deployedAddresses
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to get deployment data for step ${step.step}`);
+            }
+            
+            const deployData = await response.json();
+            
+            // Deploy contracts in this step
+            if (deployData.parallel && step.contracts.length > 1) {
+                // Deploy in parallel
+                showMessage(`Deploying ${step.contracts.length} contracts in parallel...`, 'info');
+                const deployPromises = deployData.deploymentData.map(data => deployContractWithData(data));
+                const results = await Promise.all(deployPromises);
+                
+                // Store addresses
+                results.forEach((address, index) => {
+                    deployedAddresses[deployData.deploymentData[index].contractName] = address;
+                });
+            } else {
+                // Deploy sequentially
+                for (const data of deployData.deploymentData) {
+                    showMessage(`Deploying ${data.contractName}...`, 'info');
+                    const address = await deployContractWithData(data);
+                    deployedAddresses[data.contractName] = address;
+                    
+                    // Execute post-deployment functions if any
+                    if (data.postDeploy && data.postDeploy.length > 0) {
+                        for (const postDeploy of data.postDeploy) {
+                            showMessage(`Executing ${postDeploy.method} on ${data.contractName}...`, 'info');
+                            await executePostDeploy(address, data.abi, postDeploy);
+                        }
+                    }
+                }
+            }
+            
+            currentDeploymentStep = i + 1;
+            renderDeploymentSteps();
+        }
+        
+        showMessage('Complex deployment completed successfully!', 'success');
+        
+        // Show deployment summary
+        showDeploymentSummary();
+        
+    } catch (error) {
+        showMessage('Deployment failed: ' + error.message, 'error');
+        console.error('Deployment error:', error);
+    }
+}
+
+async function deployContractWithData(deployData) {
+    const factory = new ethers.ContractFactory(
+        deployData.abi,
+        deployData.bytecode,
+        signer
+    );
+    
+    console.log(`Deploying ${deployData.contractName} with args:`, deployData.constructorArgs);
+    const contract = await factory.deploy(...deployData.constructorArgs);
+    await contract.deployed();
+    
+    console.log(`${deployData.contractName} deployed at:`, contract.address);
+    return contract.address;
+}
+
+async function executePostDeploy(contractAddress, abi, postDeploy) {
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    
+    // Process arguments, replacing references
+    const args = postDeploy.args.map(arg => {
+        if (arg && typeof arg === 'object' && arg.ref) {
+            const refParts = arg.ref.split('.');
+            const contractName = refParts[0];
+            return deployedAddresses[contractName] || arg;
+        }
+        return arg;
+    });
+    
+    const tx = await contract[postDeploy.method](...args);
+    await tx.wait();
+    console.log(`Executed ${postDeploy.method} on ${contractAddress}`);
+}
+
+function resetDeployment() {
+    currentDeploymentStep = 0;
+    deployedAddresses = {};
+    renderDeploymentSteps();
+    showMessage('Deployment reset', 'info');
+}
+
+function showDeploymentSummary() {
+    const summary = Object.entries(deployedAddresses).map(([name, address]) => 
+        `${name}: ${address}`
+    ).join('\n');
+    
+    alert(`Deployment Complete!\n\nDeployed Contracts:\n${summary}`);
+}
+
+// Update project change handler to check for deploy config
+const originalOnProjectChange = onProjectChange;
+async function onProjectChange() {
+    await originalOnProjectChange();
+    await checkDeploymentConfig();
+}

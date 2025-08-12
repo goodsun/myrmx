@@ -1,0 +1,134 @@
+{
+  "deploymentOrder": [
+    {
+      "step": 1,
+      "contracts": [
+        {
+          "name": "ArweaveMonsterBank1",
+          "contract": "ArweaveMonsterBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ArweaveMonsterBank2", 
+          "contract": "ArweaveMonsterBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ArweaveItemBank1",
+          "contract": "ArweaveItemBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ArweaveItemBank2",
+          "contract": "ArweaveItemBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ArweaveBackgroundBank",
+          "contract": "ArweaveBackgroundBank",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ArweaveEffectBank",
+          "contract": "ArweaveEffectBank",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "LegendaryBank",
+          "contract": "LegendaryBank",
+          "constructorArgs": [],
+          "parallel": true
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "contracts": [
+        {
+          "name": "ArweaveMonsterBank",
+          "contract": "ArweaveMonsterBank",
+          "constructorArgs": [
+            {"ref": "ArweaveMonsterBank1.address"},
+            {"ref": "ArweaveMonsterBank2.address"}
+          ]
+        },
+        {
+          "name": "ArweaveItemBank",
+          "contract": "ArweaveItemBank",
+          "constructorArgs": [
+            {"ref": "ArweaveItemBank1.address"},
+            {"ref": "ArweaveItemBank2.address"}
+          ]
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "contracts": [
+        {
+          "name": "ArweaveTragedyComposer",
+          "contract": "ArweaveTragedyComposer",
+          "constructorArgs": [
+            {"ref": "ArweaveMonsterBank.address"},
+            {"ref": "ArweaveBackgroundBank.address"},
+            {"ref": "ArweaveItemBank.address"},
+            {"ref": "ArweaveEffectBank.address"}
+          ]
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "contracts": [
+        {
+          "name": "TragedyMetadata",
+          "contract": "TragedyMetadata",
+          "constructorArgs": [
+            {"ref": "ArweaveTragedyComposer.address"},
+            {"ref": "LegendaryBank.address"}
+          ]
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "contracts": [
+        {
+          "name": "MetadataBank",
+          "contract": "MetadataBank",
+          "constructorArgs": [
+            {"ref": "TragedyMetadata.address"}
+          ]
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "contracts": [
+        {
+          "name": "BankedNFT",
+          "contract": "BankedNFT",
+          "constructorArgs": [
+            "Dark Narrative: The Mythical Cursed-Nightmare",
+            "DarkNarrative",
+            10,
+            "0",
+            1000
+          ],
+          "postDeploy": [
+            {
+              "method": "setMetadataBank",
+              "args": [{"ref": "MetadataBank.address"}]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

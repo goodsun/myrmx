@@ -812,6 +812,127 @@ app.get('/package.json', (req, res) => {
     });
 });
 
+// Get deployment configuration
+app.get('/api/projects/:projectName/deploy-config', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ success: false, error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        const configPath = path.join(projectPath, 'deploy-config.json');
+        
+        // Check if deploy-config.json exists
+        try {
+            await fs.access(configPath);
+            const configContent = await fs.readFile(configPath, 'utf8');
+            const config = JSON.parse(configContent);
+            
+            res.json({
+                success: true,
+                hasConfig: true,
+                config: config
+            });
+        } catch (error) {
+            // No deploy-config.json found
+            res.json({
+                success: true,
+                hasConfig: false,
+                config: null
+            });
+        }
+        
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Deploy contracts with complex dependencies
+app.post('/api/projects/:projectName/deploy-step', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        const { step, deployedAddresses } = req.body;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ success: false, error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        const configPath = path.join(projectPath, 'deploy-config.json');
+        
+        // Read deploy config
+        const configContent = await fs.readFile(configPath, 'utf8');
+        const config = JSON.parse(configContent);
+        
+        // Find the step configuration
+        const stepConfig = config.deploymentOrder.find(s => s.step === step);
+        if (!stepConfig) {
+            return res.status(400).json({ success: false, error: `Step ${step} not found in deploy config` });
+        }
+        
+        // Process contracts in this step
+        const deploymentData = [];
+        for (const contractConfig of stepConfig.contracts) {
+            // Replace references with actual addresses
+            const constructorArgs = contractConfig.constructorArgs.map(arg => {
+                if (arg && typeof arg === 'object' && arg.ref) {
+                    // This is a reference to a deployed contract
+                    const refParts = arg.ref.split('.');
+                    const contractName = refParts[0];
+                    const property = refParts[1] || 'address';
+                    
+                    if (deployedAddresses[contractName]) {
+                        return deployedAddresses[contractName][property] || deployedAddresses[contractName];
+                    } else {
+                        throw new Error(`Reference ${arg.ref} not found in deployed addresses`);
+                    }
+                }
+                return arg;
+            });
+            
+            // Get deployment data for this contract
+            const artifactsPath = path.join(projectPath, 'artifacts', 'contracts');
+            const contractFiles = await getAllContractFiles(artifactsPath);
+            
+            let deployData = null;
+            for (const file of contractFiles) {
+                const contractData = JSON.parse(await fs.readFile(file, 'utf8'));
+                if (contractData.contractName === contractConfig.contract) {
+                    deployData = {
+                        contractName: contractConfig.name,
+                        actualContractName: contractConfig.contract,
+                        abi: contractData.abi,
+                        bytecode: contractData.bytecode,
+                        constructorArgs: constructorArgs,
+                        postDeploy: contractConfig.postDeploy || []
+                    };
+                    break;
+                }
+            }
+            
+            if (!deployData) {
+                throw new Error(`Contract ${contractConfig.contract} not found in artifacts`);
+            }
+            
+            deploymentData.push(deployData);
+        }
+        
+        res.json({
+            success: true,
+            step: step,
+            deploymentData: deploymentData,
+            parallel: stepConfig.contracts[0]?.parallel || false
+        });
+        
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`
