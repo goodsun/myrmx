@@ -10,7 +10,7 @@
           "parallel": true
         },
         {
-          "name": "ArweaveMonsterBank2", 
+          "name": "ArweaveMonsterBank2",
           "contract": "ArweaveMonsterBank2",
           "constructorArgs": [],
           "parallel": true
@@ -54,16 +54,16 @@
           "name": "ArweaveMonsterBank",
           "contract": "ArweaveMonsterBank",
           "constructorArgs": [
-            {"ref": "ArweaveMonsterBank1.address"},
-            {"ref": "ArweaveMonsterBank2.address"}
+            { "ref": "ArweaveMonsterBank1.address" },
+            { "ref": "ArweaveMonsterBank2.address" }
           ]
         },
         {
           "name": "ArweaveItemBank",
           "contract": "ArweaveItemBank",
           "constructorArgs": [
-            {"ref": "ArweaveItemBank1.address"},
-            {"ref": "ArweaveItemBank2.address"}
+            { "ref": "ArweaveItemBank1.address" },
+            { "ref": "ArweaveItemBank2.address" }
           ]
         }
       ]
@@ -75,10 +75,10 @@
           "name": "ArweaveTragedyComposer",
           "contract": "ArweaveTragedyComposer",
           "constructorArgs": [
-            {"ref": "ArweaveMonsterBank.address"},
-            {"ref": "ArweaveBackgroundBank.address"},
-            {"ref": "ArweaveItemBank.address"},
-            {"ref": "ArweaveEffectBank.address"}
+            { "ref": "ArweaveMonsterBank.address" },
+            { "ref": "ArweaveBackgroundBank.address" },
+            { "ref": "ArweaveItemBank.address" },
+            { "ref": "ArweaveEffectBank.address" }
           ]
         }
       ]
@@ -90,8 +90,8 @@
           "name": "TragedyMetadata",
           "contract": "TragedyMetadata",
           "constructorArgs": [
-            {"ref": "ArweaveTragedyComposer.address"},
-            {"ref": "LegendaryBank.address"}
+            { "ref": "ArweaveTragedyComposer.address" },
+            { "ref": "LegendaryBank.address" }
           ]
         }
       ]
@@ -102,9 +102,7 @@
         {
           "name": "MetadataBank",
           "contract": "MetadataBank",
-          "constructorArgs": [
-            {"ref": "TragedyMetadata.address"}
-          ]
+          "constructorArgs": [{ "ref": "TragedyMetadata.address" }]
         }
       ]
     },
@@ -115,16 +113,16 @@
           "name": "BankedNFT",
           "contract": "BankedNFT",
           "constructorArgs": [
-            "Dark Narrative: The Mythical Cursed-Nightmare",
-            "DarkNarrative",
-            10,
-            "0",
+            "The Mythical Cursed-Nightmare",
+            "Deth",
+            10000,
+            20,
             1000
           ],
           "postDeploy": [
             {
               "method": "setMetadataBank",
-              "args": [{"ref": "MetadataBank.address"}]
+              "args": [{ "ref": "MetadataBank.address" }]
             }
           ]
         }
