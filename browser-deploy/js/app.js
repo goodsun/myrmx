@@ -1472,6 +1472,11 @@ function showDeploymentSummary() {
             <button id="copyAllAddresses" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
                 📋 Copy All Addresses
             </button>
+            ${deployedAddresses.BankedNFT ? `
+            <button id="interactWithNFT" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                🎮 Interact with NFT Contract
+            </button>
+            ` : ''}
         </div>
     `;
     
@@ -1532,6 +1537,34 @@ function showDeploymentSummary() {
             showMessage('All addresses copied to clipboard!', 'success');
         });
     });
+    
+    // Add interaction button listener if BankedNFT exists
+    if (deployedAddresses.BankedNFT) {
+        const interactBtn = document.getElementById('interactWithNFT');
+        if (interactBtn) {
+            interactBtn.addEventListener('click', async () => {
+                // Get the BankedNFT contract data
+                try {
+                    const response = await fetch(`/api/projects/${selectedProject}/contracts`);
+                    const data = await response.json();
+                    
+                    // Find BankedNFT contract
+                    const bankedNFTContract = data.contracts['BankedNFT'];
+                    if (bankedNFTContract) {
+                        // Show interaction UI
+                        showContractInteraction('BankedNFT', deployedAddresses.BankedNFT, bankedNFTContract.abi);
+                        
+                        // Scroll to interaction section
+                        document.getElementById('contractInteraction').scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        showMessage('Could not find BankedNFT ABI', 'error');
+                    }
+                } catch (error) {
+                    showMessage('Failed to load contract ABI: ' + error.message, 'error');
+                }
+            });
+        }
+    }
     
     // Also log to console for debugging
     console.log('Deployment Summary:', deployedAddresses);
