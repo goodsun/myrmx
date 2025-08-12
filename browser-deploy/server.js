@@ -850,6 +850,31 @@ app.get('/api/projects/:projectName/deploy-config', async (req, res) => {
     }
 });
 
+// Helper function to get all contract files recursively
+async function getAllContractFiles(dir, files = []) {
+    try {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            
+            if (entry.isDirectory()) {
+                // Skip directories like 'hardhat' or '@openzeppelin'
+                if (!entry.name.startsWith('@') && entry.name !== 'hardhat') {
+                    await getAllContractFiles(fullPath, files);
+                }
+            } else if (entry.name.endsWith('.json') && !entry.name.includes('.dbg.')) {
+                files.push(fullPath);
+            }
+        }
+        
+        return files;
+    } catch (error) {
+        console.error('Error reading contract files:', error);
+        return files;
+    }
+}
+
 // Deploy contracts with complex dependencies
 app.post('/api/projects/:projectName/deploy-step', async (req, res) => {
     try {
@@ -929,7 +954,14 @@ app.post('/api/projects/:projectName/deploy-step', async (req, res) => {
         });
         
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Deploy step error:', error);
+        console.error('Project:', projectName);
+        console.error('Step:', step);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 

@@ -1354,7 +1354,9 @@ async function startComplexDeployment() {
             });
             
             if (!response.ok) {
-                throw new Error(`Failed to get deployment data for step ${step.step}`);
+                const errorData = await response.json();
+                console.error('Deploy step error:', errorData);
+                throw new Error(`Failed to get deployment data for step ${step.step}: ${errorData.error || 'Unknown error'}`);
             }
             
             const deployData = await response.json();
@@ -1443,11 +1445,74 @@ function resetDeployment() {
 }
 
 function showDeploymentSummary() {
-    const summary = Object.entries(deployedAddresses).map(([name, address]) => 
-        `${name}: ${address}`
-    ).join('\n');
+    // Create a nice summary UI instead of alert
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'mt-4 p-4 bg-green-50 border border-green-200 rounded-lg';
+    summaryDiv.innerHTML = `
+        <h3 class="text-lg font-semibold text-green-800 mb-3">🎉 Deployment Complete!</h3>
+        <p class="text-sm text-gray-600 mb-3">All ${Object.keys(deployedAddresses).length} contracts have been successfully deployed.</p>
+        <div class="space-y-2">
+            <h4 class="font-semibold text-gray-700">Deployed Contracts:</h4>
+            <div class="bg-white p-3 rounded border border-gray-200 font-mono text-xs space-y-1 max-h-64 overflow-y-auto">
+                ${Object.entries(deployedAddresses).map(([name, address]) => 
+                    `<div class="flex justify-between items-center p-1 hover:bg-gray-50">
+                        <span class="font-semibold">${name}:</span>
+                        <span class="text-gray-600">${address}</span>
+                        <button onclick="navigator.clipboard.writeText('${address}')" class="ml-2 text-blue-500 hover:text-blue-700">
+                            📋
+                        </button>
+                    </div>`
+                ).join('')}
+            </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+            <button id="downloadDeploymentData" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                💾 Download Deployment Data
+            </button>
+            <button id="copyAllAddresses" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                📋 Copy All Addresses
+            </button>
+        </div>
+    `;
     
-    alert(`Deployment Complete!\n\nDeployed Contracts:\n${summary}`);
+    // Insert summary after the complex deployment UI
+    const complexDeployUI = document.getElementById('complexDeployUI');
+    if (complexDeployUI && complexDeployUI.parentNode) {
+        complexDeployUI.parentNode.insertBefore(summaryDiv, complexDeployUI.nextSibling);
+    }
+    
+    // Add event listeners
+    document.getElementById('downloadDeploymentData').addEventListener('click', () => {
+        const deploymentData = {
+            timestamp: new Date().toISOString(),
+            network: window.ethereum?.networkVersion || 'unknown',
+            project: selectedProject,
+            contracts: deployedAddresses
+        };
+        
+        const dataStr = JSON.stringify(deploymentData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const link = document.createElement('a');
+        link.setAttribute('href', dataUri);
+        link.setAttribute('download', `${selectedProject}-deployment-${Date.now()}.json`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+    
+    document.getElementById('copyAllAddresses').addEventListener('click', () => {
+        const addressesText = Object.entries(deployedAddresses)
+            .map(([name, address]) => `${name}: ${address}`)
+            .join('\n');
+        
+        navigator.clipboard.writeText(addressesText).then(() => {
+            showMessage('All addresses copied to clipboard!', 'success');
+        });
+    });
+    
+    // Also log to console for debugging
+    console.log('Deployment Summary:', deployedAddresses);
 }
 
 // Extend project change handler to check for deploy config
