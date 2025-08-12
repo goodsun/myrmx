@@ -261,6 +261,31 @@ async function installDependencies(projectPath) {
     });
 }
 
+// Helper function to list directory contents
+async function listDirectoryContents(dirPath, prefix = '') {
+    const items = [];
+    try {
+        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+                items.push(`${prefix}${entry.name}/`);
+                // Recursively list subdirectories (limit depth to avoid node_modules)
+                if (entry.name !== 'node_modules' && entry.name !== '.git') {
+                    const subItems = await listDirectoryContents(fullPath, prefix + '  ');
+                    items.push(...subItems);
+                }
+            } else {
+                const stats = await fs.stat(fullPath);
+                items.push(`${prefix}${entry.name} (${stats.size} bytes)`);
+            }
+        }
+    } catch (error) {
+        items.push(`${prefix}[Error reading directory: ${error.message}]`);
+    }
+    return items;
+}
+
 // Compile project
 app.post('/api/projects/:projectName/compile', async (req, res) => {
     try {
@@ -282,6 +307,24 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Transfer-Encoding', 'chunked');
         
+        // Log directory contents before compile
+        console.log('\n=== BEFORE COMPILE ===');
+        console.log(`Project: ${projectName}`);
+        console.log(`Path: ${projectPath}`);
+        console.log('Directory contents:');
+        const beforeContents = await listDirectoryContents(projectPath);
+        beforeContents.forEach(item => console.log(item));
+        
+        // Send initial status
+        res.write(JSON.stringify({ 
+            status: 'starting', 
+            message: 'Starting compilation...',
+            debug: {
+                projectPath,
+                contents: beforeContents
+            }
+        }) + '\n');
+        
         // Check and install dependencies if needed
         if (!await checkDependencies(projectPath)) {
             try {
@@ -298,29 +341,96 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         // Use platform-specific command execution
         const isWindows = os.platform() === 'win32';
         const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+        
+        console.log('\n=== EXECUTING COMPILE ===');
+        console.log(`Command: ${npxCmd} hardhat compile`);
+        console.log(`Working directory: ${projectPath}`);
+        console.log(`Platform: ${os.platform()}`);
+        
         const compile = spawn(npxCmd, ['hardhat', 'compile'], {
             cwd: projectPath,
             stdio: 'pipe',
-            shell: false
+            shell: false,
+            env: { ...process.env, NODE_ENV: 'development' }
         });
+        
+        console.log(`Process PID: ${compile.pid}`);
         
         let output = '';
         let errorOutput = '';
         
         compile.stdout.on('data', (data) => {
-            output += data.toString();
+            const chunk = data.toString();
+            output += chunk;
+            console.log('[STDOUT]:', chunk.trim());
         });
         
         compile.stderr.on('data', (data) => {
-            errorOutput += data.toString();
+            const chunk = data.toString();
+            errorOutput += chunk;
+            console.log('[STDERR]:', chunk.trim());
         });
         
-        compile.on('close', (code) => {
-            if (code === 0) {
-                res.write(JSON.stringify({ success: true, output }) + '\n');
-            } else {
-                res.write(JSON.stringify({ success: false, error: errorOutput || output }) + '\n');
+        compile.on('error', (error) => {
+            console.error('[SPAWN ERROR]:', error);
+        });
+        
+        compile.on('close', async (code) => {
+            // Log directory contents after compile
+            console.log('\n=== AFTER COMPILE ===');
+            console.log(`Exit code: ${code}`);
+            console.log('Directory contents:');
+            const afterContents = await listDirectoryContents(projectPath);
+            afterContents.forEach(item => console.log(item));
+            
+            // Check for artifacts and cache
+            const artifactsPath = path.join(projectPath, 'artifacts');
+            const cachePath = path.join(projectPath, 'cache');
+            
+            let artifactsExist = false;
+            let cacheExists = false;
+            
+            try {
+                await fs.access(artifactsPath);
+                artifactsExist = true;
+                console.log('\n✓ artifacts directory created');
+            } catch {
+                console.log('\n✗ artifacts directory NOT created');
             }
+            
+            try {
+                await fs.access(cachePath);
+                cacheExists = true;
+                console.log('✓ cache directory created');
+            } catch {
+                console.log('✗ cache directory NOT created');
+            }
+            
+            if (code === 0) {
+                res.write(JSON.stringify({ 
+                    success: true, 
+                    output,
+                    debug: {
+                        exitCode: code,
+                        artifactsCreated: artifactsExist,
+                        cacheCreated: cacheExists,
+                        afterContents
+                    }
+                }) + '\n');
+            } else {
+                res.write(JSON.stringify({ 
+                    success: false, 
+                    error: errorOutput || output,
+                    debug: {
+                        exitCode: code,
+                        stdout: output,
+                        stderr: errorOutput,
+                        afterContents
+                    }
+                }) + '\n');
+            }
+            
+            console.log('\n=== COMPILE COMPLETE ===\n');
             res.end();
         });
         
