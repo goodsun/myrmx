@@ -218,23 +218,36 @@ app.get('/api/projects/:projectName/contracts', async (req, res) => {
     }
 });
 
-// Check if dependencies are installed
+// Check if dependencies are installed properly
 async function checkDependencies(projectPath) {
     try {
+        // Check both node_modules and .bin/hardhat
         await fs.access(path.join(projectPath, 'node_modules'));
+        await fs.access(path.join(projectPath, 'node_modules', '.bin', 'hardhat'));
         return true;
     } catch {
         return false;
     }
 }
 
-// Install dependencies
-async function installDependencies(projectPath) {
-    return new Promise((resolve, reject) => {
+// Install dependencies (with optional clean install)
+async function installDependencies(projectPath, cleanInstall = false) {
+    return new Promise(async (resolve, reject) => {
+        // Clean install if requested or if node_modules exists but is incomplete
+        if (cleanInstall) {
+            console.log('Performing clean install...');
+            try {
+                await fs.rm(path.join(projectPath, 'node_modules'), { recursive: true, force: true });
+                await fs.rm(path.join(projectPath, 'package-lock.json'), { force: true });
+            } catch (error) {
+                console.log('Clean up error (non-fatal):', error.message);
+            }
+        }
+        
         // Use platform-specific command execution
         const isWindows = os.platform() === 'win32';
         const npmCmd = isWindows ? 'npm.cmd' : 'npm';
-        const install = spawn(npmCmd, ['install', '--production'], {
+        const install = spawn(npmCmd, ['install'], {
             cwd: projectPath,
             stdio: 'pipe',
             shell: false
@@ -290,6 +303,7 @@ async function listDirectoryContents(dirPath, prefix = '') {
 app.post('/api/projects/:projectName/compile', async (req, res) => {
     try {
         const { projectName } = req.params;
+        const { useNpmScript } = req.body; // オプション: npm scriptを使うか
         
         // Validate project name
         if (!validateProjectName(projectName)) {
@@ -330,37 +344,95 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         console.log(`Dependencies check: ${hasDependencies ? 'Found' : 'Not found'}`);
         
         if (!hasDependencies) {
+            // Check if it's an incomplete install
+            let needsCleanInstall = false;
+            try {
+                await fs.access(path.join(projectPath, 'node_modules'));
+                needsCleanInstall = true;
+                console.log('Detected incomplete node_modules, will perform clean install');
+            } catch {
+                // node_modules doesn't exist at all
+            }
+            
             console.log('Installing dependencies...');
             try {
-                res.write(JSON.stringify({ status: 'installing', message: 'Installing dependencies...' }) + '\n');
-                await installDependencies(projectPath);
-                res.write(JSON.stringify({ status: 'installed', message: 'Dependencies installed successfully' }) + '\n');
-                console.log('Dependencies installed successfully');
+                res.write(JSON.stringify({ 
+                    status: 'installing', 
+                    message: needsCleanInstall ? 'Performing clean install...' : 'Installing dependencies...' 
+                }) + '\n');
+                
+                await installDependencies(projectPath, needsCleanInstall);
+                
+                // Verify installation was successful
+                if (await checkDependencies(projectPath)) {
+                    res.write(JSON.stringify({ status: 'installed', message: 'Dependencies installed successfully' }) + '\n');
+                    console.log('Dependencies installed successfully');
+                } else {
+                    throw new Error('Installation completed but hardhat binary not found');
+                }
             } catch (error) {
                 console.error('Failed to install dependencies:', error);
                 res.write(JSON.stringify({ success: false, error: `Failed to install dependencies: ${error.message}` }) + '\n');
                 return res.end();
             }
         } else {
-            console.log('Dependencies already installed');
+            console.log('Dependencies already installed properly');
         }
         
         // Run hardhat compile
-        // Use platform-specific command execution
-        const isWindows = os.platform() === 'win32';
-        const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+        // Try direct node_modules/.bin/hardhat approach
+        const hardhatPath = path.join(projectPath, 'node_modules', '.bin', 'hardhat');
         
         console.log('\n=== EXECUTING COMPILE ===');
-        console.log(`Command: ${npxCmd} hardhat compile`);
+        console.log(`Checking for local hardhat: ${hardhatPath}`);
+        
+        let compile;
+        let commandUsed;
+        
+        try {
+            // Check if local hardhat exists
+            await fs.access(hardhatPath);
+            console.log('Found local hardhat, using direct path');
+            
+            // Use direct path to hardhat
+            const isWindows = os.platform() === 'win32';
+            if (isWindows) {
+                // On Windows, use node to execute the script
+                compile = spawn('node', [hardhatPath, 'compile'], {
+                    cwd: projectPath,
+                    stdio: 'pipe',
+                    shell: false,
+                    env: { ...process.env, NODE_ENV: 'development' }
+                });
+                commandUsed = `node ${hardhatPath} compile`;
+            } else {
+                // On Unix-like systems, execute directly
+                compile = spawn(hardhatPath, ['compile'], {
+                    cwd: projectPath,
+                    stdio: 'pipe',
+                    shell: false,
+                    env: { ...process.env, NODE_ENV: 'development' }
+                });
+                commandUsed = `${hardhatPath} compile`;
+            }
+        } catch {
+            // Fallback to npx
+            console.log('Local hardhat not found, falling back to npx');
+            const isWindows = os.platform() === 'win32';
+            const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+            
+            compile = spawn(npxCmd, ['hardhat', 'compile'], {
+                cwd: projectPath,
+                stdio: 'pipe',
+                shell: false,
+                env: { ...process.env, NODE_ENV: 'development' }
+            });
+            commandUsed = `${npxCmd} hardhat compile`;
+        }
+        
+        console.log(`Command: ${commandUsed}`);
         console.log(`Working directory: ${projectPath}`);
         console.log(`Platform: ${os.platform()}`);
-        
-        const compile = spawn(npxCmd, ['hardhat', 'compile'], {
-            cwd: projectPath,
-            stdio: 'pipe',
-            shell: false,
-            env: { ...process.env, NODE_ENV: 'development' }
-        });
         
         console.log(`Process PID: ${compile.pid}`);
         
