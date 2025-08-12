@@ -4,6 +4,79 @@ const fs = require('fs').promises;
 const { spawn } = require('child_process');
 const os = require('os');
 
+// Project templates
+const PROJECT_TEMPLATES = {
+    'hardhat.config.js': `require("@nomiclabs/hardhat-waffle");
+
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
+  solidity: "0.8.19",
+  networks: {
+    hardhat: {
+      chainId: 1337
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545"
+    }
+  }
+};`,
+    'package.json': (projectName) => `{
+  "name": "${projectName}",
+  "version": "1.0.0",
+  "description": "Hardhat project created by siegeNgin",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.0",
+    "chai": "^4.2.0",
+    "ethereum-waffle": "^3.0.0",
+    "ethers": "^5.0.0",
+    "hardhat": "^2.12.0"
+  }
+}`,
+    '.gitignore': `node_modules
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts
+
+# Editor
+.vscode
+.idea`,
+    'contracts/HelloWorld.sol': `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+contract HelloWorld {
+    string public message;
+    address public owner;
+    
+    event MessageChanged(string oldMessage, string newMessage);
+    
+    constructor(string memory _message) {
+        message = _message;
+        owner = msg.sender;
+    }
+    
+    function setMessage(string memory _newMessage) public {
+        string memory oldMessage = message;
+        message = _newMessage;
+        emit MessageChanged(oldMessage, _newMessage);
+    }
+    
+    function getMessage() public view returns (string memory) {
+        return message;
+    }
+}`
+};
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -250,6 +323,75 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
             }
             res.end();
         });
+        
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Create new project
+app.post('/api/projects/create', async (req, res) => {
+    try {
+        const { projectName } = req.body;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ success: false, error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        
+        // Check if project already exists
+        try {
+            await fs.access(projectPath);
+            return res.status(400).json({ success: false, error: 'Project already exists' });
+        } catch {
+            // Project doesn't exist, continue
+        }
+        
+        // Create project directory structure
+        await fs.mkdir(projectPath, { recursive: true });
+        await fs.mkdir(path.join(projectPath, 'contracts'), { recursive: true });
+        await fs.mkdir(path.join(projectPath, 'test'), { recursive: true });
+        
+        // Write template files
+        await fs.writeFile(
+            path.join(projectPath, 'hardhat.config.js'),
+            PROJECT_TEMPLATES['hardhat.config.js']
+        );
+        
+        await fs.writeFile(
+            path.join(projectPath, 'package.json'),
+            typeof PROJECT_TEMPLATES['package.json'] === 'function' 
+                ? PROJECT_TEMPLATES['package.json'](projectName)
+                : PROJECT_TEMPLATES['package.json']
+        );
+        
+        await fs.writeFile(
+            path.join(projectPath, '.gitignore'),
+            PROJECT_TEMPLATES['.gitignore']
+        );
+        
+        await fs.writeFile(
+            path.join(projectPath, 'contracts', 'HelloWorld.sol'),
+            PROJECT_TEMPLATES['contracts/HelloWorld.sol']
+        );
+        
+        // Install dependencies
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        
+        res.write(JSON.stringify({ status: 'created', message: 'Project created successfully' }) + '\n');
+        res.write(JSON.stringify({ status: 'installing', message: 'Installing dependencies...' }) + '\n');
+        
+        try {
+            await installDependencies(projectPath);
+            res.write(JSON.stringify({ success: true, message: 'Project created and dependencies installed' }) + '\n');
+        } catch (error) {
+            res.write(JSON.stringify({ success: true, message: 'Project created but dependency installation failed. Run npm install manually.' }) + '\n');
+        }
+        
+        res.end();
         
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

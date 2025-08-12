@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('refreshContracts').addEventListener('click', loadContracts);
     document.getElementById('deployBtn').addEventListener('click', deployContract);
     document.getElementById('cleanProject').addEventListener('click', cleanProject);
+    document.getElementById('createProject').addEventListener('click', createNewProject);
     
     // Contract interaction event listeners
     document.getElementById('readTab').addEventListener('click', () => switchTab('read'));
@@ -429,6 +430,65 @@ async function compileProject() {
             showMessage('Compilation failed: ' + error.message, 'error');
         }
         console.error(error);
+    }
+}
+
+// Create new project
+async function createNewProject() {
+    const projectName = prompt('Enter new project name:');
+    
+    if (!projectName) return;
+    
+    // Validate project name (alphanumeric, hyphens, underscores)
+    if (!projectName.match(/^[a-zA-Z0-9_-]+$/)) {
+        showMessage('Invalid project name. Use only letters, numbers, hyphens, and underscores.', 'error');
+        return;
+    }
+    
+    try {
+        showMessage('Creating new project...', 'info');
+        
+        const response = await fetch('/api/projects/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectName })
+        });
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            const lines = chunk.trim().split('\n');
+            
+            for (const line of lines) {
+                if (line) {
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.status) {
+                            showMessage(data.message, 'info');
+                        } else if (data.success) {
+                            showMessage(data.message, 'success');
+                            // Reload projects and select the new one
+                            await loadProjects();
+                            document.getElementById('projectSelect').value = projectName;
+                            await onProjectChange({ target: { value: projectName } });
+                        } else if (data.error) {
+                            showMessage(data.error, 'error');
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse:', line);
+                    }
+                }
+            }
+        }
+        
+    } catch (error) {
+        console.error(error);
+        showMessage('Failed to create project: ' + error.message, 'error');
     }
 }
 
