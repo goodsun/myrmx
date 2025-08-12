@@ -412,7 +412,7 @@ app.get('/api/projects/:projectName/status', async (req, res) => {
 // Root package.json for the browser-deploy tool
 app.get('/package.json', (req, res) => {
     res.json({
-        name: "hardhat-browser-deploy",
+        name: "siegengin-browser-deploy",
         version: "1.0.0",
         scripts: {
             start: "node server.js"
@@ -426,7 +426,7 @@ app.get('/package.json', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`
-🚀 Hardhat Browser Deploy Tool is running!
+🚀 siegeNgin Browser Deploy Tool is running!
    
    URL: http://localhost:${PORT}
    

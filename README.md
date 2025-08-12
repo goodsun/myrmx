@@ -14,13 +14,27 @@ Hardhat Browser Deploy Tool
 - 🧹 **プロジェクト管理** - 自動依存関係インストール、クリーンアップ機能
 - 🎯 **スマートバリデーション** - コンストラクタ引数の型別検証
 
+## 名前の由来 🏰
+
+**siegeNgin** = **siege（包囲攻撃）** + **Engine（エンジン）**
+
+Hardhat開発環境は、その複雑さから初心者にとってまるで難攻不落の「要塞」のようです。
+コマンドライン、設定ファイル、デプロイスクリプト...これらの壁を乗り越えるのは大変な作業です。
+
+siegeNginは、この要塞を「攻略」するための強力な攻城兵器（エンジン）として開発されました。
+ブラウザというシンプルなインターフェースを通じて、複雑な要塞の門を開き、
+誰もが簡単にスマートコントラクトをデプロイできる世界を実現します。
+
+Web3開発の参入障壁という「城壁」を打ち破り、より多くの開発者がブロックチェーンの世界に
+参加できることを願って、このツールは作られました。
+
 ## クイックスタート
 
 ### 1. リポジトリのクローン
 
 ```bash
-git clone https://github.com/yourusername/myrmx.git
-cd myrmx
+git clone https://github.com/yourusername/siegeNgin.git
+cd siegeNgin
 ```
 
 ### 2. 依存関係のインストール
@@ -60,7 +74,7 @@ npm start
 ## プロジェクト構成
 
 ```
-myrmx/
+siegeNgin/
 ├── browser-deploy/        # WebUIツール本体
 │   ├── index.html        # メインUI
 │   ├── js/app.js         # アプリケーションロジック

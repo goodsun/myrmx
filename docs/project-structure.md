@@ -3,7 +3,7 @@
 ## ディレクトリ構造
 
 ```
-myrmx/
+siegeNgin/
 ├── projects/              # 管理対象のHardhatプロジェクト群
 │   ├── project1/         # プロジェクト例1
 │   │   ├── contracts/    # スマートコントラクト

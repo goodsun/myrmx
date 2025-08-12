@@ -1,5 +1,5 @@
 {
-  "name": "hardhat-browser-deploy",
+  "name": "siegengin-browser-deploy",
   "version": "1.0.0",
   "description": "Browser-based deployment tool for Hardhat projects",
   "main": "server.js",

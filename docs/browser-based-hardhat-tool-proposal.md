@@ -61,7 +61,7 @@ Hardhatプロジェクトにおいて、コマンドラインを使わずにブ�
 
 ### ファイル構成
 ```
-myrmx/
+siegeNgin/
 ├── contracts/          # スマートコントラクト
 ├── artifacts/          # Hardhatビルド成果物
 ├── docs/              # ドキュメント

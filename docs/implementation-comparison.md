@@ -11,7 +11,7 @@ npx hardhat browser-deploy
 ### 構成
 ```javascript
 // hardhat.config.js
-require("@myrmx/hardhat-browser-deploy");
+require("@siegengin/hardhat-browser-deploy");
 
 module.exports = {
   // ...
