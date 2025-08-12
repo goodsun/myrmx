@@ -1483,11 +1483,33 @@ function showDeploymentSummary() {
     
     // Add event listeners
     document.getElementById('downloadDeploymentData').addEventListener('click', () => {
+        // Convert network ID to name
+        const networkId = window.ethereum?.networkVersion || '1337';
+        let networkName = 'unknown';
+        switch(networkId) {
+            case '1': networkName = 'mainnet'; break;
+            case '5': networkName = 'goerli'; break;
+            case '11155111': networkName = 'sepolia'; break;
+            case '137': networkName = 'polygon'; break;
+            case '1337': networkName = 'private'; break;
+            case '31337': networkName = 'hardhat'; break;
+            default: networkName = `chain-${networkId}`;
+        }
+        
+        // Convert contract names to camelCase
+        const camelCaseAddresses = {};
+        Object.entries(deployedAddresses).forEach(([name, address]) => {
+            // Convert names like "ArweaveMonsterBank1" to "monsterBank1"
+            const camelName = name
+                .replace(/^Arweave/, '') // Remove "Arweave" prefix
+                .replace(/^(.)/g, (match) => match.toLowerCase()); // Lowercase first letter
+            camelCaseAddresses[camelName] = address;
+        });
+        
         const deploymentData = {
+            network: networkName,
             timestamp: new Date().toISOString(),
-            network: window.ethereum?.networkVersion || 'unknown',
-            project: selectedProject,
-            contracts: deployedAddresses
+            contracts: camelCaseAddresses
         };
         
         const dataStr = JSON.stringify(deploymentData, null, 2);
@@ -1495,7 +1517,7 @@ function showDeploymentSummary() {
         
         const link = document.createElement('a');
         link.setAttribute('href', dataUri);
-        link.setAttribute('download', `${selectedProject}-deployment-${Date.now()}.json`);
+        link.setAttribute('download', `deployment.json`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
