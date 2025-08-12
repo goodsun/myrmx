@@ -392,7 +392,13 @@ async function compileProject() {
             }
         }
     } catch (error) {
-        showMessage('Compilation failed', 'error');
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+            showMessage('サーバーに接続できません。サーバーが起動しているか確認してください。', 'error');
+        } else if (error.name === 'TypeError' && error.message === 'network error') {
+            showMessage('ネットワークエラーが発生しました。接続を確認してください。', 'error');
+        } else {
+            showMessage('Compilation failed: ' + error.message, 'error');
+        }
         console.error(error);
     }
 }

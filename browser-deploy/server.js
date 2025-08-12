@@ -200,6 +200,10 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
             return res.status(404).json({ success: false, error: 'Project not found' });
         }
         
+        // Set headers for streaming response
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        
         // Check and install dependencies if needed
         if (!await checkDependencies(projectPath)) {
             try {
@@ -207,7 +211,8 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
                 await installDependencies(projectPath);
                 res.write(JSON.stringify({ status: 'installed', message: 'Dependencies installed successfully' }) + '\n');
             } catch (error) {
-                return res.status(500).json({ success: false, error: `Failed to install dependencies: ${error.message}` });
+                res.write(JSON.stringify({ success: false, error: `Failed to install dependencies: ${error.message}` }) + '\n');
+                return res.end();
             }
         }
         
@@ -230,10 +235,11 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         
         compile.on('close', (code) => {
             if (code === 0) {
-                res.json({ success: true, output });
+                res.write(JSON.stringify({ success: true, output }) + '\n');
             } else {
-                res.json({ success: false, error: errorOutput || output });
+                res.write(JSON.stringify({ success: false, error: errorOutput || output }) + '\n');
             }
+            res.end();
         });
         
     } catch (error) {
