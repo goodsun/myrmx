@@ -39,9 +39,40 @@ async function loadProjects() {
     }
 }
 
+// Validate project name on client side
+function isValidProjectName(name) {
+    // Same validation as server
+    if (!name) return false;
+    
+    const dangerous = ['..', '/', '\\', '~', './', '../', '..\\', '.\\'];
+    for (const pattern of dangerous) {
+        if (name.includes(pattern)) {
+            return false;
+        }
+    }
+    
+    if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+        return false;
+    }
+    
+    if (name.length > 100) {
+        return false;
+    }
+    
+    return true;
+}
+
 // Handle project selection change
 async function onProjectChange(event) {
     selectedProject = event.target.value;
+    
+    // Validate project name
+    if (selectedProject && !isValidProjectName(selectedProject)) {
+        showMessage('Invalid project name', 'error');
+        selectedProject = '';
+        event.target.value = '';
+        return;
+    }
     
     if (selectedProject) {
         await loadContracts();

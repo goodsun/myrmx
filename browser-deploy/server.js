@@ -25,6 +25,51 @@ app.use(cors(corsOptions));
 app.use(express.static(__dirname));
 app.use(express.json());
 
+// Security: Validate project name to prevent path traversal
+function validateProjectName(projectName) {
+    // Check for null/undefined
+    if (!projectName) return false;
+    
+    // Check for path traversal patterns
+    const dangerous = ['..', '/', '\\', '~', './', '../', '..\\', '.\\'];
+    for (const pattern of dangerous) {
+        if (projectName.includes(pattern)) {
+            return false;
+        }
+    }
+    
+    // Only allow alphanumeric, dash, and underscore
+    if (!/^[a-zA-Z0-9_-]+$/.test(projectName)) {
+        return false;
+    }
+    
+    // Reasonable length limit
+    if (projectName.length > 100) {
+        return false;
+    }
+    
+    return true;
+}
+
+// Additional security: Ensure path stays within projects directory
+async function validateProjectPath(projectPath) {
+    const projectsRoot = path.resolve(path.join(__dirname, '../projects'));
+    const resolvedPath = path.resolve(projectPath);
+    
+    // Ensure the resolved path starts with projects root
+    if (!resolvedPath.startsWith(projectsRoot)) {
+        return false;
+    }
+    
+    // Check if directory exists
+    try {
+        const stat = await fs.stat(resolvedPath);
+        return stat.isDirectory();
+    } catch {
+        return false;
+    }
+}
+
 // Get list of projects
 app.get('/api/projects', async (req, res) => {
     try {
@@ -44,7 +89,19 @@ app.get('/api/projects', async (req, res) => {
 app.get('/api/projects/:projectName/contracts', async (req, res) => {
     try {
         const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ error: 'Invalid project name' });
+        }
+        
         const projectPath = path.join(__dirname, '../projects', projectName);
+        
+        // Validate project path
+        if (!await validateProjectPath(projectPath)) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+        
         const artifactsPath = path.join(projectPath, 'artifacts/contracts');
         
         const contracts = {};
@@ -91,10 +148,18 @@ app.get('/api/projects/:projectName/contracts', async (req, res) => {
 app.post('/api/projects/:projectName/compile', async (req, res) => {
     try {
         const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ success: false, error: 'Invalid project name' });
+        }
+        
         const projectPath = path.join(__dirname, '../projects', projectName);
         
-        // Check if project exists
-        await fs.access(projectPath);
+        // Validate project path
+        if (!await validateProjectPath(projectPath)) {
+            return res.status(404).json({ success: false, error: 'Project not found' });
+        }
         
         // Run hardhat compile
         const compile = spawn('npx', ['hardhat', 'compile'], {
@@ -131,7 +196,24 @@ app.post('/api/projects/:projectName/deploy', async (req, res) => {
     try {
         const { projectName } = req.params;
         const { contractName } = req.body;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ success: false, error: 'Invalid project name' });
+        }
+        
+        // Validate contract name (similar rules)
+        if (!validateProjectName(contractName)) {
+            return res.status(400).json({ success: false, error: 'Invalid contract name' });
+        }
+        
         const projectPath = path.join(__dirname, '../projects', projectName);
+        
+        // Validate project path
+        if (!await validateProjectPath(projectPath)) {
+            return res.status(404).json({ success: false, error: 'Project not found' });
+        }
+        
         const artifactsPath = path.join(projectPath, 'artifacts/contracts');
         
         // Find the contract artifact
