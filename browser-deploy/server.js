@@ -4,9 +4,24 @@ const fs = require('fs').promises;
 const { spawn } = require('child_process');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
+// CORS設定
+const cors = require('cors');
+const corsOptions = {
+    origin: function (origin, callback) {
+        // 開発環境ではすべて許可、本番環境では特定のオリジンのみ許可
+        const allowedOrigins = process.env.NODE_ENV === 'production' 
+            ? ['https://yourdomain.com'] 
+            : true;
+        callback(null, allowedOrigins);
+    },
+    credentials: true,
+    optionsSuccessStatus: 200
+};
 
 // Middleware
+app.use(cors(corsOptions));
 app.use(express.static(__dirname));
 app.use(express.json());
 
