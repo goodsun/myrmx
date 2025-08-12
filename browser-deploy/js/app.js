@@ -94,6 +94,8 @@ async function loadProjectStatus() {
         const response = await fetch(`/api/projects/${selectedProject}/status`);
         const status = await response.json();
         
+        console.log('Project status:', status); // デバッグ用
+        
         const statusDetails = document.getElementById('statusDetails');
         statusDetails.innerHTML = '';
         
@@ -382,13 +384,25 @@ async function compileProject() {
         
         // Parse final response
         if (buffer.trim()) {
-            const data = JSON.parse(buffer);
-            if (data.success) {
-                showMessage('Compilation successful!', 'success');
-                await loadContracts();
-                await loadProjectStatus();
-            } else {
-                showMessage(`Compilation failed: ${data.error}`, 'error');
+            try {
+                const data = JSON.parse(buffer);
+                if (data.success) {
+                    showMessage('Compilation successful!', 'success');
+                    // 少し待ってからステータスを更新（ファイルシステムの遅延対策）
+                    setTimeout(async () => {
+                        await loadContracts();
+                        await loadProjectStatus();
+                    }, 500);
+                } else {
+                    showMessage(`Compilation failed: ${data.error}`, 'error');
+                }
+            } catch (parseError) {
+                console.error('Failed to parse response:', buffer);
+                // それでもコンパイルは成功している可能性があるので、ステータスを更新
+                setTimeout(async () => {
+                    await loadContracts();
+                    await loadProjectStatus();
+                }, 500);
             }
         }
     } catch (error) {
