@@ -163,6 +163,8 @@ PORT=3001 npm start
 
 ## ドキュメント
 
+- [アーキテクチャ設計](docs/ARCHITECTURE.md) - システム設計と設計思想
+- [セットアップガイド](docs/SETUP.md) - 詳細なインストールと設定手順
 - [APIリファレンス](docs/api-reference.md) - 開発者向けAPI仕様
 - [セキュリティガイド](docs/security.md) - セキュリティ機能と推奨設定
 - [変更履歴](docs/CHANGELOG.md) - バージョンごとの変更内容

@@ -326,15 +326,23 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
         }) + '\n');
         
         // Check and install dependencies if needed
-        if (!await checkDependencies(projectPath)) {
+        const hasDependencies = await checkDependencies(projectPath);
+        console.log(`Dependencies check: ${hasDependencies ? 'Found' : 'Not found'}`);
+        
+        if (!hasDependencies) {
+            console.log('Installing dependencies...');
             try {
                 res.write(JSON.stringify({ status: 'installing', message: 'Installing dependencies...' }) + '\n');
                 await installDependencies(projectPath);
                 res.write(JSON.stringify({ status: 'installed', message: 'Dependencies installed successfully' }) + '\n');
+                console.log('Dependencies installed successfully');
             } catch (error) {
+                console.error('Failed to install dependencies:', error);
                 res.write(JSON.stringify({ success: false, error: `Failed to install dependencies: ${error.message}` }) + '\n');
                 return res.end();
             }
+        } else {
+            console.log('Dependencies already installed');
         }
         
         // Run hardhat compile
