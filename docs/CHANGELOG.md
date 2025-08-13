@@ -34,6 +34,13 @@
 - INTERFACE_MANAGEMENT.mdの追加
 - READMEの特徴と使い方セクションを更新
 - ui-design.mdにInterface-based Interaction画面を追加
+- PROJECT_TEMPLATE.mdの追加
+
+### その他の改善
+- Project StatusにInterface Filesの状態表示を追加
+- Clean Project機能でinterfaceディレクトリも削除対象に追加
+- .gitignoreにinterfaceディレクトリを追加（自動生成ファイルのため）
+- 画像ファイル名の修正（Trebuchet.jpg → trebuchet.jpg）
 
 ## [1.0.0] - 2024-08-12
 

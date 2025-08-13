@@ -66,12 +66,23 @@ npm install
 ### プロジェクトの操作
 
 1. **プロジェクト選択**: ドロップダウンから選択
-2. **コンパイル**: 「Compile」ボタンをクリック
-3. **デプロイ**: 
+2. **プロジェクトステータスの確認**:
+   - Dependencies: 依存関係のインストール状態
+   - Build artifacts: コンパイル結果の有無
+   - Cache: Hardhatキャッシュの状態
+   - Interface files: 生成されたインターフェースファイルの有無
+3. **コンパイル**: 「Compile」ボタンをクリック
+4. **デプロイ**: 
    - MetaMaskを接続
    - コントラクトを選択
    - パラメータを入力
    - 「Deploy」をクリック
+5. **クリーンアップ**: 「🧹 Clean Project」ボタンで以下を削除
+   - node_modules
+   - artifacts
+   - cache
+   - interface（生成されたABI/インターフェースファイル）
+   - その他.gitignoreに記載されたファイル
 
 ## トラブルシューティング
 

@@ -33,6 +33,12 @@ projects/{project-name}/interface/
 - 他のプロジェクトからインターフェースをインポート可能
 - TypeScriptやフロントエンド開発での型安全性の向上
 
+### メンテナンス
+
+- **Clean Project実行時**: interfaceディレクトリも削除対象に含まれます
+- **再生成**: 次回デプロイ時に自動的に再生成されます
+- **Git管理**: .gitignoreで除外されるため、リポジトリには含まれません
+
 ## Interface-based Interaction
 
 ### 概要
