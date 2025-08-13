@@ -114,9 +114,9 @@
           "contract": "BankedNFT",
           "constructorArgs": [
             "The Mythical Cursed-Nightmare",
-            "Deth",
+            "Dark",
             10000,
-            20,
+            33000000000000000000,
             1000
           ],
           "postDeploy": [
