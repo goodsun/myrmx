@@ -1913,6 +1913,48 @@ function showDeploymentSummary() {
 // Extend project change handler to check for deploy config
 const originalOnProjectChange = onProjectChange;
 onProjectChange = async function (event) {
+  // Hide interface interaction section and reset
+  const interfaceSection = document.getElementById("interfaceInteractionSection");
+  if (interfaceSection) interfaceSection.classList.add("hidden");
+  
+  const interfaceArea = document.getElementById("interfaceContractArea");
+  if (interfaceArea) interfaceArea.classList.add("hidden");
+  
+  // Reset interface interaction form
+  const contractSelect = document.getElementById("interfaceContractSelect");
+  if (contractSelect) contractSelect.value = "";
+  
+  const contractAddress = document.getElementById("interfaceContractAddress");
+  if (contractAddress) contractAddress.value = "";
+  
+  const networkSelect = document.getElementById("interfaceNetworkSelect");
+  if (networkSelect) networkSelect.value = "current";
+  
+  // Clear any displayed functions and results
+  const readFunctions = document.getElementById("interfaceReadFunctions");
+  if (readFunctions) readFunctions.innerHTML = "";
+  
+  const writeFunctions = document.getElementById("interfaceWriteFunctions");
+  if (writeFunctions) writeFunctions.innerHTML = "";
+  
+  const eventsList = document.getElementById("interfaceEventsList");
+  if (eventsList) eventsList.innerHTML = "";
+  
+  // Reset current interface contract
+  currentInterfaceContract = null;
+  interfaceContracts = {};
+  
+  // Hide other interaction sections
+  const interactionSection = document.getElementById("interactionSection");
+  if (interactionSection) interactionSection.classList.add("hidden");
+  
+  const resultsSection = document.getElementById("resultsSection");
+  if (resultsSection) resultsSection.classList.add("hidden");
+  
+  // Show compile & deploy section (default view)
+  const compileDeploySection = document.getElementById("compileDeploySection");
+  if (compileDeploySection) compileDeploySection.classList.remove("hidden");
+  
   await originalOnProjectChange.call(this, event);
   await checkDeploymentConfig();
   await checkInterfaceDirectory();
@@ -2044,13 +2086,20 @@ function loadInterfaceContracts(interfaces) {
 
 // Interface interaction button event listener
 document.getElementById("interfaceInteraction").addEventListener("click", () => {
+  // Hide compile & deploy section
+  const compileDeploySection = document.getElementById("compileDeploySection");
+  if (compileDeploySection) compileDeploySection.classList.add("hidden");
+  
   // Hide other sections
-  document.getElementById("contractsList").classList.add("hidden");
-  document.getElementById("resultsSection").classList.add("hidden");
-  document.getElementById("interactionSection").classList.add("hidden");
+  const resultsSection = document.getElementById("resultsSection");
+  if (resultsSection) resultsSection.classList.add("hidden");
+  
+  const interactionSection = document.getElementById("interactionSection");
+  if (interactionSection) interactionSection.classList.add("hidden");
   
   // Show interface interaction section
-  document.getElementById("interfaceInteractionSection").classList.remove("hidden");
+  const interfaceSection = document.getElementById("interfaceInteractionSection");
+  if (interfaceSection) interfaceSection.classList.remove("hidden");
   
   // Update current network info
   updateCurrentNetworkInfo();
