@@ -1837,20 +1837,10 @@ function showDeploymentSummary() {
           networkName = `chain-${networkId}`;
       }
 
-      // Convert contract names to camelCase
-      const camelCaseAddresses = {};
-      Object.entries(deployedAddresses).forEach(([name, address]) => {
-        // Convert names like "ArweaveMonsterBank1" to "monsterBank1"
-        const camelName = name
-          .replace(/^Arweave/, "") // Remove "Arweave" prefix
-          .replace(/^(.)/g, (match) => match.toLowerCase()); // Lowercase first letter
-        camelCaseAddresses[camelName] = address;
-      });
-
       const deploymentData = {
         network: networkName,
         timestamp: new Date().toISOString(),
-        contracts: camelCaseAddresses,
+        contracts: deployedAddresses,
       };
 
       const dataStr = JSON.stringify(deploymentData, null, 2);
