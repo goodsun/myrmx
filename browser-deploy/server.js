@@ -869,6 +869,58 @@ app.post('/api/projects/:projectName/clean', async (req, res) => {
     }
 });
 
+// Get interface files for a project
+app.get('/api/projects/:projectName/interfaces', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        const interfacePath = path.join(projectPath, 'interface');
+        
+        // Check if interface directory exists
+        try {
+            await fs.access(interfacePath);
+            const files = await fs.readdir(interfacePath);
+            res.json(files);
+        } catch {
+            res.json([]); // Return empty array if no interface directory
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get specific interface file
+app.get('/api/projects/:projectName/interface/:filename', async (req, res) => {
+    try {
+        const { projectName, filename } = req.params;
+        
+        // Validate inputs
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ error: 'Invalid project name' });
+        }
+        
+        // Validate filename (prevent directory traversal)
+        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+            return res.status(400).json({ error: 'Invalid filename' });
+        }
+        
+        const filePath = path.join(__dirname, '../projects', projectName, 'interface', filename);
+        
+        // Read and parse ABI file
+        const content = await fs.readFile(filePath, 'utf8');
+        const abi = JSON.parse(content);
+        res.json(abi);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get project status
 app.get('/api/projects/:projectName/status', async (req, res) => {
     try {

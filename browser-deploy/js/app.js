@@ -1874,4 +1874,467 @@ const originalOnProjectChange = onProjectChange;
 onProjectChange = async function (event) {
   await originalOnProjectChange.call(this, event);
   await checkDeploymentConfig();
+  await checkInterfaceDirectory();
 };
+
+// Interface-based Contract Interaction Functions
+let interfaceContracts = {};
+let currentInterfaceContract = null;
+
+// Helper functions for parameter handling
+function getPlaceholderForType(type) {
+  if (type.includes('address')) return '0x...';
+  if (type.includes('uint') || type.includes('int')) return 'Enter number';
+  if (type.includes('bool')) return 'true or false';
+  if (type.includes('string')) return 'Enter text';
+  if (type.includes('bytes32')) return '0x... (64 hex chars)';
+  if (type.includes('bytes')) return '0x...';
+  if (type.includes('[]')) return '[value1, value2, ...]';
+  return `Enter ${type}`;
+}
+
+function parseParameterValue(value, type) {
+  // Handle empty values
+  if (!value && value !== 0 && value !== false) {
+    if (type.includes('[]')) return [];
+    if (type.includes('uint') || type.includes('int')) return 0;
+    if (type === 'bool') return false;
+    if (type === 'address') return ethers.constants.AddressZero;
+    return value;
+  }
+  
+  // Arrays
+  if (type.includes('[]')) {
+    try {
+      const parsed = JSON.parse(value);
+      const baseType = type.replace('[]', '');
+      return parsed.map(v => parseParameterValue(v, baseType));
+    } catch {
+      return value.split(',').map(v => parseParameterValue(v.trim(), type.replace('[]', '')));
+    }
+  }
+  
+  // Basic types
+  if (type === 'bool') return value === 'true' || value === true;
+  if (type.includes('uint') || type.includes('int')) {
+    if (type.includes('uint256') || type.includes('int256')) {
+      return ethers.BigNumber.from(value);
+    }
+    return parseInt(value);
+  }
+  if (type === 'address') return ethers.utils.getAddress(value);
+  if (type.includes('bytes32')) return ethers.utils.formatBytes32String(value);
+  if (type.includes('bytes')) return value;
+  
+  return value;
+}
+
+function formatOutputValue(value, type) {
+  if (value === null || value === undefined) return 'null';
+  
+  // BigNumber
+  if (ethers.BigNumber.isBigNumber(value)) {
+    return value.toString();
+  }
+  
+  // Arrays
+  if (Array.isArray(value)) {
+    return '[' + value.map(v => formatOutputValue(v, type.replace('[]', ''))).join(', ') + ']';
+  }
+  
+  // Address
+  if (type === 'address') {
+    return value;
+  }
+  
+  // Boolean
+  if (type === 'bool') {
+    return value ? 'true' : 'false';
+  }
+  
+  // Bytes
+  if (type.includes('bytes')) {
+    return value;
+  }
+  
+  // Default
+  return value.toString();
+}
+
+async function checkInterfaceDirectory() {
+  if (!selectedProject) return;
+
+  try {
+    const response = await fetch(`/api/projects/${selectedProject}/interfaces`);
+    if (response.ok) {
+      const interfaces = await response.json();
+      const hasInterfaces = interfaces && interfaces.length > 0;
+      
+      // Show/hide interface interaction button
+      const interfaceBtn = document.getElementById("interfaceInteraction");
+      if (hasInterfaces) {
+        interfaceBtn.classList.remove("hidden");
+        loadInterfaceContracts(interfaces);
+      } else {
+        interfaceBtn.classList.add("hidden");
+      }
+    }
+  } catch (error) {
+    console.error("Failed to check interface directory:", error);
+  }
+}
+
+function loadInterfaceContracts(interfaces) {
+  interfaceContracts = {};
+  const select = document.getElementById("interfaceContractSelect");
+  select.innerHTML = '<option value="">Select a contract with interface...</option>';
+  
+  interfaces.forEach(file => {
+    if (file.endsWith('.abi.json')) {
+      const contractName = file.replace('.abi.json', '');
+      interfaceContracts[contractName] = file;
+      const option = document.createElement("option");
+      option.value = contractName;
+      option.textContent = contractName;
+      select.appendChild(option);
+    }
+  });
+}
+
+// Interface interaction button event listener
+document.getElementById("interfaceInteraction").addEventListener("click", () => {
+  // Hide other sections
+  document.getElementById("contractsList").classList.add("hidden");
+  document.getElementById("resultsSection").classList.add("hidden");
+  document.getElementById("interactionSection").classList.add("hidden");
+  
+  // Show interface interaction section
+  document.getElementById("interfaceInteractionSection").classList.remove("hidden");
+});
+
+// Load interface contract button
+document.getElementById("loadInterfaceContract").addEventListener("click", async () => {
+  const contractName = document.getElementById("interfaceContractSelect").value;
+  const contractAddress = document.getElementById("interfaceContractAddress").value;
+  const network = document.getElementById("interfaceNetworkSelect").value;
+  
+  if (!contractName || !contractAddress) {
+    showMessage("Please select a contract and enter an address", "error");
+    return;
+  }
+  
+  if (!ethers.utils.isAddress(contractAddress)) {
+    showMessage("Invalid contract address", "error");
+    return;
+  }
+  
+  try {
+    // Load ABI from interface directory
+    const response = await fetch(`/api/projects/${selectedProject}/interface/${interfaceContracts[contractName]}`);
+    if (!response.ok) {
+      throw new Error("Failed to load ABI");
+    }
+    
+    const abi = await response.json();
+    
+    // Check if provider is available
+    if (!provider && !signer) {
+      // Try to create a default provider
+      const networkMap = {
+        'polygon': 'https://polygon-rpc.com',
+        'amoy': 'https://rpc-amoy.polygon.technology',
+        'mainnet': 'https://eth-mainnet.g.alchemy.com/v2/demo',
+        'sepolia': 'https://rpc.sepolia.org'
+      };
+      
+      if (networkMap[network]) {
+        provider = new ethers.providers.JsonRpcProvider(networkMap[network]);
+      } else {
+        showMessage("Please connect your wallet first", "error");
+        return;
+      }
+    }
+    
+    // Update display
+    document.getElementById("interfaceContractName").textContent = contractName;
+    document.getElementById("interfaceContractAddressDisplay").textContent = contractAddress;
+    document.getElementById("interfaceNetworkDisplay").textContent = network;
+    
+    // Create contract instance with provider first
+    currentInterfaceContract = new ethers.Contract(contractAddress, abi, provider);
+    
+    // Show contract area
+    document.getElementById("interfaceContractArea").classList.remove("hidden");
+    
+    // Load functions
+    loadInterfaceFunctions(abi);
+    
+    showMessage(`Loaded ${contractName} at ${contractAddress}`, "success");
+  } catch (error) {
+    showMessage("Failed to load contract: " + error.message, "error");
+    console.error("Contract loading error:", error);
+  }
+});
+
+// Tab switching for interface interaction
+document.getElementById("interfaceReadTab").addEventListener("click", () => {
+  switchInterfaceTab("read");
+});
+
+document.getElementById("interfaceWriteTab").addEventListener("click", () => {
+  switchInterfaceTab("write");
+});
+
+document.getElementById("interfaceEventsTab").addEventListener("click", () => {
+  switchInterfaceTab("events");
+});
+
+function switchInterfaceTab(tab) {
+  // Update tab styles
+  const tabs = ["interfaceReadTab", "interfaceWriteTab", "interfaceEventsTab"];
+  tabs.forEach(tabId => {
+    const tabEl = document.getElementById(tabId);
+    if (tabId === `interface${tab.charAt(0).toUpperCase() + tab.slice(1)}Tab`) {
+      tabEl.classList.add("text-blue-600", "border-b-2", "border-blue-600");
+      tabEl.classList.remove("text-gray-600");
+    } else {
+      tabEl.classList.remove("text-blue-600", "border-b-2", "border-blue-600");
+      tabEl.classList.add("text-gray-600");
+    }
+  });
+  
+  // Show/hide content
+  document.getElementById("interfaceReadFunctions").classList.toggle("hidden", tab !== "read");
+  document.getElementById("interfaceWriteFunctions").classList.toggle("hidden", tab !== "write");
+  document.getElementById("interfaceEventsSection").classList.toggle("hidden", tab !== "events");
+}
+
+function loadInterfaceFunctions(abi) {
+  const readFunctions = [];
+  const writeFunctions = [];
+  
+  abi.forEach(item => {
+    if (item.type === "function") {
+      if (item.stateMutability === "view" || item.stateMutability === "pure") {
+        readFunctions.push(item);
+      } else {
+        writeFunctions.push(item);
+      }
+    }
+  });
+  
+  // Render read functions
+  const readContainer = document.getElementById("interfaceReadFunctions");
+  readContainer.innerHTML = "";
+  readFunctions.forEach(func => {
+    readContainer.appendChild(createInterfaceFunctionUI(func, "read"));
+  });
+  
+  // Render write functions
+  const writeContainer = document.getElementById("interfaceWriteFunctions");
+  writeContainer.innerHTML = "";
+  writeFunctions.forEach(func => {
+    writeContainer.appendChild(createInterfaceFunctionUI(func, "write"));
+  });
+}
+
+function createInterfaceFunctionUI(func, type) {
+  const div = document.createElement("div");
+  div.className = "border rounded p-4";
+  
+  const title = document.createElement("h4");
+  title.className = "font-semibold mb-2";
+  title.textContent = func.name;
+  div.appendChild(title);
+  
+  // Create inputs for parameters
+  if (func.inputs.length > 0) {
+    func.inputs.forEach((input, index) => {
+      const inputDiv = document.createElement("div");
+      inputDiv.className = "mb-2";
+      
+      const label = document.createElement("label");
+      label.className = "block text-sm font-medium mb-1";
+      label.textContent = `${input.name || `param${index}`} (${input.type})`;
+      inputDiv.appendChild(label);
+      
+      const inputEl = document.createElement("input");
+      inputEl.type = "text";
+      inputEl.id = `interface-${func.name}-${index}`;
+      inputEl.className = "w-full border rounded px-3 py-2 text-sm";
+      inputEl.placeholder = getPlaceholderForType(input.type);
+      inputDiv.appendChild(inputEl);
+      
+      div.appendChild(inputDiv);
+    });
+  }
+  
+  // Create button
+  const button = document.createElement("button");
+  button.className = type === "read" 
+    ? "bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
+    : "bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-2";
+  button.textContent = type === "read" ? "Query" : "Execute";
+  button.onclick = () => executeInterfaceFunction(func, type);
+  div.appendChild(button);
+  
+  // Result area
+  const resultDiv = document.createElement("div");
+  resultDiv.id = `interface-result-${func.name}`;
+  resultDiv.className = "mt-2 text-sm";
+  div.appendChild(resultDiv);
+  
+  return div;
+}
+
+async function executeInterfaceFunction(func, type) {
+  if (!currentInterfaceContract) {
+    showMessage("No contract loaded", "error");
+    return;
+  }
+  
+  try {
+    // Collect parameters
+    const params = [];
+    for (let i = 0; i < func.inputs.length; i++) {
+      const inputEl = document.getElementById(`interface-${func.name}-${i}`);
+      const value = inputEl.value;
+      
+      // Parse value based on type
+      const parsedValue = parseParameterValue(value, func.inputs[i].type);
+      params.push(parsedValue);
+    }
+    
+    const resultDiv = document.getElementById(`interface-result-${func.name}`);
+    
+    if (type === "read") {
+      // Call read function
+      resultDiv.innerHTML = '<span class="text-gray-500">Querying...</span>';
+      const result = await currentInterfaceContract[func.name](...params);
+      
+      // Format result
+      let formattedResult;
+      if (func.outputs.length === 1) {
+        formattedResult = formatOutputValue(result, func.outputs[0].type);
+      } else {
+        formattedResult = func.outputs.map((output, index) => 
+          `${output.name || `output${index}`}: ${formatOutputValue(result[index], output.type)}`
+        ).join("<br>");
+      }
+      
+      resultDiv.innerHTML = `<div class="bg-green-50 p-2 rounded">${formattedResult}</div>`;
+    } else {
+      // Execute write function
+      if (!signer) {
+        showMessage("Please connect your wallet to execute transactions", "error");
+        return;
+      }
+      
+      // Connect contract with signer for write operations
+      const contractWithSigner = currentInterfaceContract.connect(signer);
+      
+      resultDiv.innerHTML = '<span class="text-gray-500">Sending transaction...</span>';
+      const tx = await contractWithSigner[func.name](...params);
+      
+      resultDiv.innerHTML = `<span class="text-blue-500">Transaction sent: ${tx.hash.substring(0, 10)}...</span>`;
+      
+      const receipt = await tx.wait();
+      resultDiv.innerHTML = `<div class="bg-green-50 p-2 rounded">Transaction confirmed! Gas used: ${receipt.gasUsed.toString()}</div>`;
+    }
+  } catch (error) {
+    const resultDiv = document.getElementById(`interface-result-${func.name}`);
+    
+    // More detailed error handling
+    let errorMessage = error.message;
+    
+    // Extract revert reason from various error formats
+    if (error.reason) {
+      errorMessage = error.reason;
+    } else if (error.data && error.data.message) {
+      errorMessage = error.data.message;
+    } else if (error.error && error.error.data && error.error.data.message) {
+      errorMessage = error.error.data.message;
+    } else if (error.message && error.message.includes('execution reverted:')) {
+      // Extract revert reason from error message
+      const match = error.message.match(/execution reverted: (.+)/);
+      if (match) {
+        errorMessage = match[1];
+      }
+    }
+    
+    // Handle specific error codes
+    if (error.code === 'CALL_EXCEPTION') {
+      if (!errorMessage.includes('execution reverted')) {
+        errorMessage = `Call failed: ${errorMessage}`;
+      }
+    } else if (error.code === 'NETWORK_ERROR') {
+      errorMessage = 'Network error. Please check your connection and the selected network.';
+    } else if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
+      // Check if there's a revert reason
+      if (error.reason || (error.error && error.error.message)) {
+        errorMessage = error.reason || error.error.message;
+      }
+    } else if (error.code === 'ACTION_REJECTED') {
+      errorMessage = 'Transaction was rejected by the user.';
+    }
+    
+    resultDiv.innerHTML = `<div class="bg-red-50 p-2 rounded text-red-600 text-sm">
+      <div class="font-semibold">Error:</div>
+      <div class="mt-1">${errorMessage}</div>
+    </div>`;
+    
+    console.error('Contract interaction error:', error);
+  }
+}
+
+// Load events for interface contracts
+document.getElementById("interfaceLoadEvents").addEventListener("click", async () => {
+  if (!currentInterfaceContract) {
+    showMessage("No contract loaded", "error");
+    return;
+  }
+  
+  try {
+    const eventsList = document.getElementById("interfaceEventsList");
+    eventsList.innerHTML = '<div class="text-gray-500">Loading events...</div>';
+    
+    // Get recent events (last 100 blocks)
+    const currentBlock = await provider.getBlockNumber();
+    const fromBlock = Math.max(0, currentBlock - 100);
+    
+    const filter = {
+      address: currentInterfaceContract.address,
+      fromBlock: fromBlock,
+      toBlock: currentBlock
+    };
+    
+    const logs = await provider.getLogs(filter);
+    
+    if (logs.length === 0) {
+      eventsList.innerHTML = '<div class="text-gray-500">No recent events found</div>';
+      return;
+    }
+    
+    // Parse logs
+    eventsList.innerHTML = "";
+    for (const log of logs) {
+      try {
+        const parsedLog = currentInterfaceContract.interface.parseLog(log);
+        const eventDiv = document.createElement("div");
+        eventDiv.className = "border rounded p-3 mb-2";
+        
+        eventDiv.innerHTML = `
+          <div class="font-semibold">${parsedLog.name}</div>
+          <div class="text-sm text-gray-600">Block: ${log.blockNumber}</div>
+          <div class="text-sm mt-1">${JSON.stringify(parsedLog.args, null, 2)}</div>
+        `;
+        
+        eventsList.appendChild(eventDiv);
+      } catch (e) {
+        // Skip logs that can't be parsed
+      }
+    }
+  } catch (error) {
+    showMessage("Failed to load events: " + error.message, "error");
+  }
+});
