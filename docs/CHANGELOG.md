@@ -1,5 +1,17 @@
 # 変更履歴
 
+## [1.2.1] - 2025-08-13
+
+### コード整理
+- tragedyプロジェクトのBank契約を`banks/`ディレクトリに整理
+- 全てのBank契約から冗長な"Arweave"プレフィックスを削除
+  - ArweaveMonsterBank → MonsterBank
+  - ArweaveItemBank → ItemBank
+  - ArweaveBackgroundBank → BackgroundBank
+  - ArweaveEffectBank → EffectBank
+- ArweaveTragedyComposer → TragedyComposerにリネーム
+- ドキュメントの更新（README.md、COMPLEX_DEPLOYMENTS.md）
+
 ## [1.2.0] - 2025-08-13
 
 ### 追加機能

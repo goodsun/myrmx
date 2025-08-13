@@ -91,21 +91,21 @@ Execute functions after deployment:
 The Tragedy project demonstrates a complex 6-layer deployment:
 
 1. **Base Banks** (7 contracts, deployed in parallel)
-   - ArweaveMonsterBank1/2
-   - ArweaveItemBank1/2
-   - ArweaveBackgroundBank
-   - ArweaveEffectBank
+   - MonsterBank1/2
+   - ItemBank1/2
+   - BackgroundBank
+   - EffectBank
    - LegendaryBank
 
 2. **Aggregator Banks** (2 contracts)
-   - ArweaveMonsterBank (requires MonsterBank1/2)
-   - ArweaveItemBank (requires ItemBank1/2)
+   - MonsterBank (requires MonsterBank1/2)
+   - ItemBank (requires ItemBank1/2)
 
 3. **Composer** (1 contract)
-   - ArweaveTragedyComposer (requires all banks)
+   - TragedyComposer (requires all banks)
 
 4. **Metadata Generator** (1 contract)
-   - TragedyMetadata (requires Composer and LegendaryBank)
+   - TragedyMetadata (requires TragedyComposer and LegendaryBank)
 
 5. **Metadata Proxy** (1 contract)
    - MetadataBank (requires TragedyMetadata)
