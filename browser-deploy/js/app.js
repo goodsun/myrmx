@@ -1164,8 +1164,49 @@ async function executeFunction(funcIndex, isReadFunction) {
       }
     }
   } catch (error) {
-    console.error(error);
-    showMessage(`Function call failed: ${error.message}`, "error");
+    console.error("Function call error:", error);
+    
+    // Extract detailed error message
+    let errorMessage = error.message;
+    
+    // Extract revert reason from various error formats
+    if (error.reason) {
+      errorMessage = error.reason;
+    } else if (error.data && error.data.message) {
+      errorMessage = error.data.message;
+    } else if (error.error && error.error.data && error.error.data.message) {
+      errorMessage = error.error.data.message;
+    } else if (error.message && error.message.includes('execution reverted:')) {
+      // Extract revert reason from error message
+      const match = error.message.match(/execution reverted: (.+)/);
+      if (match) {
+        errorMessage = match[1];
+      }
+    }
+    
+    // Handle specific error codes
+    if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
+      // Check if there's a revert reason
+      if (error.reason || (error.error && error.error.message)) {
+        errorMessage = error.reason || error.error.message;
+      }
+    } else if (error.code === 'ACTION_REJECTED') {
+      errorMessage = 'Transaction was rejected by the user.';
+    }
+    
+    // Display detailed error in result div
+    const resultDiv = document.getElementById(`func-${funcIndex}-result`);
+    if (resultDiv) {
+      resultDiv.innerHTML = `
+        <div class="bg-red-50 border border-red-200 rounded p-3">
+          <p class="text-sm font-semibold text-red-800">Error:</p>
+          <p class="text-sm mt-1 text-red-700">${errorMessage}</p>
+        </div>
+      `;
+      resultDiv.classList.remove("hidden");
+    }
+    
+    showMessage(`Function call failed: ${errorMessage}`, "error");
   }
 }
 
