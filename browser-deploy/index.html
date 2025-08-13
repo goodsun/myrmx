@@ -11,7 +11,7 @@
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-8 text-gray-800">🚀 siegeNgin Browser Deploy Tool</h1>
-        
+
         <!-- Project Selection -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex items-center justify-between mb-4">
@@ -34,14 +34,14 @@
                     </button>
                 </div>
             </div>
-            
+
             <!-- Project Status -->
             <div id="projectStatus" class="hidden mt-4 p-3 bg-gray-50 rounded text-sm">
                 <p class="font-semibold mb-2">Project Status:</p>
                 <div id="statusDetails" class="space-y-1">
                 </div>
             </div>
-            
+
             <!-- MetaMask Connection -->
             <div class="mb-4">
                 <div id="accountInfo" class="hidden">
@@ -60,7 +60,7 @@
                 </button>
             </div>
         </div>
-        
+
         <!-- Compile & Deploy Section -->
         <div id="compileDeploySection" class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="mb-4">
@@ -74,7 +74,7 @@
                     🔗 Shared Contracts
                 </button>
             </div>
-            
+
             <!-- Shared Contracts Dialog -->
             <div id="sharedContractsDialog" class="hidden mb-4 p-4 bg-purple-50 rounded-lg">
                 <h4 class="font-semibold mb-2">Manage Shared Contracts</h4>
@@ -86,7 +86,7 @@
                     + Add Shared Contract
                 </button>
             </div>
-            
+
             <!-- Contract List -->
             <div id="contractsList" class="mb-4">
                 <h3 class="font-semibold mb-2">Contracts:</h3>
@@ -94,40 +94,40 @@
                     <p class="text-gray-500">Select a project first</p>
                 </div>
             </div>
-            
+
             <!-- Constructor Parameters -->
             <div id="constructorParams" class="mb-4 hidden">
                 <h3 class="font-semibold mb-2">Constructor Parameters:</h3>
                 <div id="paramsContainer" class="border rounded p-4">
                 </div>
             </div>
-            
+
             <button id="deployBtn" class="bg-blue-500 text-white px-6 py-3 rounded hover:bg-blue-600 w-full" disabled>
                 🚀 Deploy Selected Contract
             </button>
         </div>
-        
+
         <!-- Results Section -->
         <div id="resultsSection" class="bg-white rounded-lg shadow-md p-6 hidden">
             <h3 class="font-semibold mb-4">Deploy Results:</h3>
             <div id="deployResults" class="space-y-2">
             </div>
         </div>
-        
+
         <!-- Interface-based Contract Interaction Section -->
         <div id="interfaceInteractionSection" class="bg-white rounded-lg shadow-md p-6 hidden">
             <h3 class="font-semibold mb-4">🔧 Interface-based Contract Interaction</h3>
-            
+
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Contract Selection:</label>
                 <select id="interfaceContractSelect" class="w-full border rounded px-3 py-2 mb-2">
                     <option value="">Select a contract with interface...</option>
                 </select>
-                
+
                 <label class="block text-sm font-medium text-gray-700 mb-2 mt-4">Contract Address:</label>
-                <input type="text" id="interfaceContractAddress" placeholder="0x..." 
+                <input type="text" id="interfaceContractAddress" placeholder="0x..."
                     class="w-full border rounded px-3 py-2 mb-2 font-mono text-sm">
-                
+
                 <label class="block text-sm font-medium text-gray-700 mb-2">Network:</label>
                 <select id="interfaceNetworkSelect" class="w-full border rounded px-3 py-2 mb-2">
                     <option value="current">Current Network (Connected via MetaMask)</option>
@@ -139,12 +139,12 @@
                 <div id="currentNetworkInfo" class="text-sm text-gray-600 mb-4">
                     <!-- Current network info will be displayed here -->
                 </div>
-                
+
                 <button id="loadInterfaceContract" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 w-full">
                     Load Contract
                 </button>
             </div>
-            
+
             <!-- Interface Contract Interaction Area -->
             <div id="interfaceContractArea" class="hidden">
                 <!-- Contract Info -->
@@ -153,7 +153,7 @@
                     <p class="text-sm text-gray-600">Address: <span id="interfaceContractAddressDisplay" class="font-mono text-xs"></span></p>
                     <p class="text-sm text-gray-600">Network: <span id="interfaceNetworkDisplay" class="font-semibold"></span></p>
                 </div>
-                
+
                 <!-- Function Tabs -->
                 <div class="mb-4 border-b">
                     <button id="interfaceReadTab" class="px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600">
@@ -166,17 +166,17 @@
                         Events
                     </button>
                 </div>
-                
+
                 <!-- Read Functions -->
                 <div id="interfaceReadFunctions" class="space-y-4">
                     <!-- Functions will be dynamically added here -->
                 </div>
-                
+
                 <!-- Write Functions -->
                 <div id="interfaceWriteFunctions" class="space-y-4 hidden">
                     <!-- Functions will be dynamically added here -->
                 </div>
-                
+
                 <!-- Events -->
                 <div id="interfaceEventsSection" class="hidden">
                     <div class="mb-4">
@@ -190,17 +190,17 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Contract Interaction Section -->
         <div id="interactionSection" class="bg-white rounded-lg shadow-md p-6 hidden">
             <h3 class="font-semibold mb-4">Contract Interaction</h3>
-            
+
             <!-- Contract Info -->
             <div class="mb-4 p-3 bg-gray-50 rounded">
                 <p class="text-sm text-gray-600">Contract: <span id="interactContractName" class="font-semibold"></span></p>
                 <p class="text-sm text-gray-600">Address: <span id="interactContractAddress" class="font-mono text-xs"></span></p>
             </div>
-            
+
             <!-- Function Tabs -->
             <div class="mb-4 border-b">
                 <button id="readTab" class="px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600">
@@ -213,17 +213,17 @@
                     Events
                 </button>
             </div>
-            
+
             <!-- Read Functions -->
             <div id="readFunctions" class="space-y-4">
                 <!-- Read functions will be dynamically added here -->
             </div>
-            
+
             <!-- Write Functions -->
             <div id="writeFunctions" class="space-y-4 hidden">
                 <!-- Write functions will be dynamically added here -->
             </div>
-            
+
             <!-- Events -->
             <div id="eventsSection" class="hidden">
                 <div class="mb-4">
@@ -236,12 +236,30 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Error/Status Messages -->
         <div id="messageContainer" class="fixed bottom-4 right-4 max-w-md">
         </div>
     </div>
-    
+
+    <!-- Footer -->
+    <footer class="mt-8 mb-4">
+        <div class="container mx-auto px-4">
+            <div class="text-center py-4 border-t border-gray-200">
+                <p class="text-sm text-gray-600">
+                    © 2025 siegeNgin -
+                    <a href="https://github.com/goodsun/siegeNgin" target="_blank" rel="noopener noreferrer"
+                       class="text-blue-600 hover:text-blue-800 underline">
+                        GitHub Repository
+                    </a>
+                </p>
+                <p class="text-xs text-gray-500 mt-1">
+                    A powerful Ethereum development environment for Hardhat projects
+                </p>
+            </div>
+        </div>
+    </footer>
+
     <script src="js/app.js"></script>
 </body>
 </html>
