@@ -116,7 +116,7 @@
             "The Mythical Cursed-Nightmare",
             "Dark",
             10000,
-            33000000000000000000,
+            "33000000000000000000",
             1000
           ],
           "postDeploy": [
