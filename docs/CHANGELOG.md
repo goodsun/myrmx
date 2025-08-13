@@ -1,5 +1,40 @@
 # 変更履歴
 
+## [1.2.0] - 2025-08-13
+
+### 追加機能
+
+#### Interface-based Contract Interaction
+- インターフェースディレクトリを持つプロジェクトで、任意のコントラクトアドレスに対してインタラクション可能
+- マルチネットワーク対応（Current Network選択で任意のチェーンに対応）
+- 主要ネットワークのサポート（Ethereum、Polygon、BSC、Avalanche、Arbitrum、Optimism等）
+
+#### インターフェース自動生成
+- デプロイ時にABIファイル（.abi.json）を自動生成
+- Solidityインターフェースファイル（.sol）を自動生成
+- projects/{project-name}/interface/ディレクトリに保存
+
+#### エラーハンドリングの改善
+- Solidityのrevert理由を明確に表示
+- ネットワーク不一致やコントラクト不在の詳細なエラーメッセージ
+- CALL_EXCEPTIONエラーの原因を分かりやすく説明
+
+#### UI/UXの改善
+- Interface Interactionボタンの追加（対象プロジェクトのみ表示）
+- プロジェクト切り替え時の画面状態リセット
+- Compile & Deploy Sectionの表示/非表示切り替え
+- フッターにGitHubリポジトリへのリンクを追加
+
+### 技術的改善
+- providerの自動検出と設定
+- パラメータ型の自動検証と変換
+- BigNumber、配列、bytes32等の適切な処理
+
+### ドキュメント
+- INTERFACE_MANAGEMENT.mdの追加
+- READMEの特徴と使い方セクションを更新
+- ui-design.mdにInterface-based Interaction画面を追加
+
 ## [1.0.0] - 2024-08-12
 
 ### 追加機能

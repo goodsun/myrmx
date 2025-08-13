@@ -1,7 +1,16 @@
 # siegeNgin
 
-Hardhat Browser Deploy Tool
-ブラウザ上でMetaMaskを使ってHardhatプロジェクトのスマートコントラクトをデプロイできるツールです。コマンドラインを使わずに、GUIで簡単にコントラクトのデプロイとインタラクションが可能です。
+<div align="center">
+  <img src="docs/images/trebuchet.jpg" alt="Trebuchet - Medieval Siege Engine" width="600">
+  
+  *A trebuchet at Château de Castelnaud (Image: [ChrisO](https://commons.wikimedia.org/wiki/User:ChrisO), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0), via Wikimedia Commons)*
+</div>
+
+<div align="center">
+  <h3>Hardhat Browser Deploy Tool</h3>
+  <p>ブラウザ上でMetaMaskを使ってHardhatプロジェクトのスマートコントラクトをデプロイできるツールです。<br>
+  コマンドラインを使わずに、GUIで簡単にコントラクトのデプロイとインタラクションが可能です。</p>
+</div>
 
 ## 特徴
 
@@ -9,6 +18,9 @@ Hardhat Browser Deploy Tool
 - **MetaMask統合** - ウォレット接続でセキュアにデプロイ
 - **マルチプロジェクト対応** - 複数のHardhatプロジェクトを管理
 - **ABI出力** - デプロイ後すぐにABIをコピー/ダウンロード
+- **インターフェース自動生成** - デプロイ時にABIとインターフェースファイルを自動出力
+- **Interface-based Interaction** - インターフェースディレクトリを持つプロジェクトで、任意のコントラクトアドレスに対してインタラクション可能
+- **マルチネットワーク対応** - Ethereum、Polygon、BSC、Avalanche等の主要ネットワークをサポート
 - **ガス見積もり** - デプロイ前に料金を確認
 - **セキュリティ強化** - パストラバーサル対策、ネットワーク検証
 - **プロジェクト管理** - 自動依存関係インストール、クリーンアップ機能
@@ -17,6 +29,7 @@ Hardhat Browser Deploy Tool
 - **複雑なデプロイメント対応** - 多層構造のコントラクトを自動デプロイ
 - **コントラクトインタラクション** - デプロイ済みコントラクトの読み書き機能
 - **イベントモニタリング** - コントラクトイベントのリアルタイム監視
+- **詳細なエラー表示** - Solidityのrevert理由を明確に表示
 
 ## 名前の由来
 
@@ -86,12 +99,24 @@ npm start
 
 ### 5. 使い方
 
+#### コントラクトのデプロイ
 1. **プロジェクト選択**: ドロップダウンから `sample-project` を選択
 2. **MetaMask接続**: 「Connect MetaMask」ボタンをクリック
 3. **コンパイル**: 「📁 Compile」ボタンでコントラクトをコンパイル
 4. **コントラクト選択**: 表示されたコントラクトから1つを選択
 5. **デプロイ**: 「🚀 Deploy Selected Contract」をクリック
 6. **結果確認**: デプロイアドレスとABIが表示されます
+   - ABI/インターフェースファイルは `projects/{project-name}/interface/` に自動保存
+
+#### Interface-based Interaction（インターフェースを使用したコントラクト操作）
+1. **Interface Interactionボタン**: プロジェクトに `interface` ディレクトリがある場合に表示
+2. **コントラクト選択**: インターフェースファイルから操作したいコントラクトを選択
+3. **アドレス入力**: デプロイ済みのコントラクトアドレスを入力
+4. **ネットワーク選択**: 
+   - "Current Network"を選択するとMetaMaskの現在のネットワークを使用
+   - または特定のネットワーク（Polygon、Ethereum等）を選択
+5. **Load Contract**: コントラクトを読み込み
+6. **関数実行**: Read/Write関数を実行、イベントログを確認
 
 ## プロジェクト構成
 
