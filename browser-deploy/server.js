@@ -299,6 +299,112 @@ async function listDirectoryContents(dirPath, prefix = '') {
     return items;
 }
 
+// Generate ABI and Interface files after compilation
+async function generateABIandInterface(projectPath) {
+    const artifactsPath = path.join(projectPath, 'artifacts/contracts');
+    const interfacePath = path.join(projectPath, 'interface');
+    
+    // Create interface directory
+    await fs.mkdir(interfacePath, { recursive: true });
+    
+    // Process all compiled contracts
+    const contractDirs = await fs.readdir(artifactsPath, { withFileTypes: true });
+    
+    for (const dir of contractDirs) {
+        if (dir.isDirectory() && dir.name.endsWith('.sol')) {
+            const contractFiles = await fs.readdir(path.join(artifactsPath, dir.name));
+            
+            for (const file of contractFiles) {
+                if (file.endsWith('.json') && !file.includes('.dbg.')) {
+                    const contractName = path.basename(file, '.json');
+                    const contractPath = path.join(artifactsPath, dir.name, file);
+                    
+                    try {
+                        // Read compiled contract data
+                        const contractData = await fs.readFile(contractPath, 'utf8');
+                        const parsed = JSON.parse(contractData);
+                        
+                        // Skip if no ABI
+                        if (!parsed.abi || parsed.abi.length === 0) continue;
+                        
+                        // Save ABI file
+                        const abiPath = path.join(interfacePath, `${contractName}.abi.json`);
+                        await fs.writeFile(abiPath, JSON.stringify(parsed.abi, null, 2));
+                        
+                        // Generate Solidity interface
+                        const interfaceContent = generateSolidityInterface(contractName, parsed.abi);
+                        if (interfaceContent) {
+                            const interfaceSolPath = path.join(interfacePath, `I${contractName}.sol`);
+                            await fs.writeFile(interfaceSolPath, interfaceContent);
+                        }
+                        
+                        console.log(`Generated ABI and interface for ${contractName}`);
+                    } catch (error) {
+                        console.error(`Failed to process ${contractName}:`, error.message);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Generate Solidity interface from ABI
+function generateSolidityInterface(contractName, abi) {
+    const functions = abi.filter(item => item.type === 'function');
+    const events = abi.filter(item => item.type === 'event');
+    
+    if (functions.length === 0 && events.length === 0) return null;
+    
+    let content = `// SPDX-License-Identifier: MIT\n`;
+    content += `pragma solidity ^0.8.0;\n\n`;
+    content += `interface I${contractName} {\n`;
+    
+    // Add events
+    for (const event of events) {
+        content += `    event ${event.name}(`;
+        const params = event.inputs.map(input => {
+            let param = '';
+            if (input.indexed) param += 'indexed ';
+            param += `${input.type}${input.name ? ' ' + input.name : ''}`;
+            return param;
+        }).join(', ');
+        content += `${params});\n`;
+    }
+    
+    if (events.length > 0 && functions.length > 0) {
+        content += '\n';
+    }
+    
+    // Add functions
+    for (const func of functions) {
+        content += `    function ${func.name}(`;
+        const params = func.inputs.map(input => {
+            return `${input.type}${input.name ? ' ' + input.name : ''}`;
+        }).join(', ');
+        content += params + ') external';
+        
+        // Add state mutability
+        if (func.stateMutability && func.stateMutability !== 'nonpayable') {
+            content += ` ${func.stateMutability}`;
+        }
+        
+        // Add return values
+        if (func.outputs && func.outputs.length > 0) {
+            content += ' returns (';
+            const returns = func.outputs.map(output => {
+                return `${output.type}${output.name ? ' ' + output.name : ''}`;
+            }).join(', ');
+            content += returns + ')';
+        }
+        
+        content += ';\n';
+    }
+    
+    content += '}\n';
+    
+    return content;
+}
+
 // Compile project
 app.post('/api/projects/:projectName/compile', async (req, res) => {
     try {
@@ -516,6 +622,14 @@ app.post('/api/projects/:projectName/compile', async (req, res) => {
             }
             
             if (code === 0) {
+                // Generate ABI and Interface files after successful compilation
+                try {
+                    await generateABIandInterface(projectPath);
+                    console.log('✓ ABI and Interface files generated');
+                } catch (genError) {
+                    console.error('✗ Failed to generate ABI/Interface files:', genError.message);
+                }
+                
                 res.write(JSON.stringify({ 
                     success: true, 
                     output,

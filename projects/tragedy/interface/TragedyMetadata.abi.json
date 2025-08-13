@@ -1,0 +1,162 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_composer",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_legendaryBank",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "SHUFFLE_SEED",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "composer",
+    "outputs": [
+      {
+        "internalType": "contract IArweaveTragedyComposer",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "decodeTokenId",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "species",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "background",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "item",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "effect",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "species",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "background",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "item",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint8",
+        "name": "effect",
+        "type": "uint8"
+      }
+    ],
+    "name": "generateMetadata",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMetadata",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getMetadataCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "legendaryBank",
+    "outputs": [
+      {
+        "internalType": "contract ILegendaryBank",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
