@@ -4,38 +4,38 @@
       "step": 1,
       "contracts": [
         {
-          "name": "ArweaveMonsterBank1",
-          "contract": "ArweaveMonsterBank1",
+          "name": "MonsterBank1",
+          "contract": "MonsterBank1",
           "constructorArgs": [],
           "parallel": true
         },
         {
-          "name": "ArweaveMonsterBank2",
-          "contract": "ArweaveMonsterBank2",
+          "name": "MonsterBank2",
+          "contract": "MonsterBank2",
           "constructorArgs": [],
           "parallel": true
         },
         {
-          "name": "ArweaveItemBank1",
-          "contract": "ArweaveItemBank1",
+          "name": "ItemBank1",
+          "contract": "ItemBank1",
           "constructorArgs": [],
           "parallel": true
         },
         {
-          "name": "ArweaveItemBank2",
-          "contract": "ArweaveItemBank2",
+          "name": "ItemBank2",
+          "contract": "ItemBank2",
           "constructorArgs": [],
           "parallel": true
         },
         {
-          "name": "ArweaveBackgroundBank",
-          "contract": "ArweaveBackgroundBank",
+          "name": "BackgroundBank",
+          "contract": "BackgroundBank",
           "constructorArgs": [],
           "parallel": true
         },
         {
-          "name": "ArweaveEffectBank",
-          "contract": "ArweaveEffectBank",
+          "name": "EffectBank",
+          "contract": "EffectBank",
           "constructorArgs": [],
           "parallel": true
         },
@@ -51,19 +51,19 @@
       "step": 2,
       "contracts": [
         {
-          "name": "ArweaveMonsterBank",
-          "contract": "ArweaveMonsterBank",
+          "name": "MonsterBank",
+          "contract": "MonsterBank",
           "constructorArgs": [
-            { "ref": "ArweaveMonsterBank1.address" },
-            { "ref": "ArweaveMonsterBank2.address" }
+            { "ref": "MonsterBank1.address" },
+            { "ref": "MonsterBank2.address" }
           ]
         },
         {
-          "name": "ArweaveItemBank",
-          "contract": "ArweaveItemBank",
+          "name": "ItemBank",
+          "contract": "ItemBank",
           "constructorArgs": [
-            { "ref": "ArweaveItemBank1.address" },
-            { "ref": "ArweaveItemBank2.address" }
+            { "ref": "ItemBank1.address" },
+            { "ref": "ItemBank2.address" }
           ]
         }
       ]
@@ -75,10 +75,10 @@
           "name": "ArweaveTragedyComposer",
           "contract": "ArweaveTragedyComposer",
           "constructorArgs": [
-            { "ref": "ArweaveMonsterBank.address" },
-            { "ref": "ArweaveBackgroundBank.address" },
-            { "ref": "ArweaveItemBank.address" },
-            { "ref": "ArweaveEffectBank.address" }
+            { "ref": "MonsterBank.address" },
+            { "ref": "BackgroundBank.address" },
+            { "ref": "ItemBank.address" },
+            { "ref": "EffectBank.address" }
           ]
         }
       ]

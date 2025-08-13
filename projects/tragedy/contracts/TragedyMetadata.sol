@@ -14,6 +14,22 @@ interface IArweaveTragedyComposer {
     function effectBank() external view returns (address);
 }
 
+interface IMonsterBank {
+    function getMonsterName(uint8 id) external view returns (string memory);
+}
+
+interface IBackgroundBank {
+    function getBackgroundName(uint8 id) external view returns (string memory);
+}
+
+interface IItemBank {
+    function getItemName(uint8 id) external view returns (string memory);
+}
+
+interface IEffectBank {
+    function getEffectName(uint8 id) external view returns (string memory);
+}
+
 interface ILegendaryBank {
     function isLegendaryId(uint256 tokenId) external view returns (bool);
     function getLegendaryTitle(uint256 tokenId) external view returns (string memory);
@@ -92,13 +108,13 @@ contract TragedyMetadata {
         string memory svg = composer.composeSVG(species, background, item, effect);
         
         // Get names from banks
-        string memory monsterName = IArweaveMonsterBank(address(composer.monsterBank())).getMonsterName(species);
-        string memory backgroundName = IArweaveBackgroundBank(address(composer.backgroundBank())).getBackgroundName(background);
-        string memory itemName = IArweaveItemBank(address(composer.itemBank())).getItemName(item);
+        string memory monsterName = IMonsterBank(address(composer.monsterBank())).getMonsterName(species);
+        string memory backgroundName = IBackgroundBank(address(composer.backgroundBank())).getBackgroundName(background);
+        string memory itemName = IItemBank(address(composer.itemBank())).getItemName(item);
         // Use the original effect ID for getting the base effect name
         uint256 shuffled = ((tokenId - 1) * SHUFFLE_SEED + 1) % 10000;
         uint8 originalEffect = uint8(shuffled % 10);
-        string memory effectName = IArweaveEffectBank(address(composer.effectBank())).getEffectName(effect);
+        string memory effectName = IEffectBank(address(composer.effectBank())).getEffectName(effect);
         
         // For legendary combinations, use the special effect name
         if (effect == 10 && originalEffect == 3 && species == 9 && item == 6 && background == 9) {

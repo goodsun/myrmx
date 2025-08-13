@@ -2,27 +2,27 @@
 pragma solidity ^0.8.20;
 
 import "./libraries/Base64.sol";
-import "./ArweaveMonsterBank.sol";
-import "./ArweaveBackgroundBank.sol";
-import "./ArweaveItemBank.sol";
-import "./ArweaveEffectBank.sol";
+import "./banks/monster/MonsterBank.sol";
+import "./banks/BackgroundBank.sol";
+import "./banks/item/ItemBank.sol";
+import "./banks/effect/EffectBank.sol";
 
-interface IArweaveMonsterBank {
+interface IMonsterBank {
     function getMonsterSVG(uint8 id) external view returns (string memory);
     function getMonsterName(uint8 id) external view returns (string memory);
 }
 
-interface IArweaveBackgroundBank {
+interface IBackgroundBank {
     function getBackgroundUrl(uint8 id) external view returns (string memory);
     function getBackgroundName(uint8 id) external view returns (string memory);
 }
 
-interface IArweaveItemBank {
+interface IItemBank {
     function getItemSVG(uint8 id) external view returns (string memory);
     function getItemName(uint8 id) external view returns (string memory);
 }
 
-interface IArweaveEffectBank {
+interface IEffectBank {
     function getEffectUrl(uint8 id) external view returns (string memory);
     function getEffectName(uint8 id) external view returns (string memory);
 }
@@ -33,10 +33,10 @@ interface IArweaveEffectBank {
  * @dev Transforms Amulet(9)->Head(10) and Shoulder(8)->Arm(11) during synergies
  */
 contract ArweaveTragedyComposer {
-    IArweaveMonsterBank public monsterBank;
-    IArweaveBackgroundBank public backgroundBank;
-    IArweaveItemBank public itemBank;
-    IArweaveEffectBank public effectBank;
+    IMonsterBank public monsterBank;
+    IBackgroundBank public backgroundBank;
+    IItemBank public itemBank;
+    IEffectBank public effectBank;
     
     // Filter parameters for each background
     mapping(uint8 => uint16[3]) private _filterParams;
@@ -47,10 +47,10 @@ contract ArweaveTragedyComposer {
         address _itemBank,
         address _effectBank
     ) {
-        monsterBank = IArweaveMonsterBank(_monsterBank);
-        backgroundBank = IArweaveBackgroundBank(_backgroundBank);
-        itemBank = IArweaveItemBank(_itemBank);
-        effectBank = IArweaveEffectBank(_effectBank);
+        monsterBank = IMonsterBank(_monsterBank);
+        backgroundBank = IBackgroundBank(_backgroundBank);
+        itemBank = IItemBank(_itemBank);
+        effectBank = IEffectBank(_effectBank);
         
         // Initialize color filters based on DESIGN.md
         _initializeFilterParams();

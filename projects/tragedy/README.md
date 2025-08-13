@@ -17,15 +17,15 @@ Tragedy is an NFT collection that generates unique artwork by composing multiple
 
 ```
 Layer 1: Base Data Banks (Storage)
-├── ArweaveMonsterBank1/2    - Monster SVG data (split for gas optimization)
-├── ArweaveItemBank1/2       - Item SVG data (split for gas optimization)
-├── ArweaveBackgroundBank    - Background URL data
-├── ArweaveEffectBank        - Effect URL data
+├── MonsterBank1/2           - Monster SVG data (split for gas optimization)
+├── ItemBank1/2              - Item SVG data (split for gas optimization)
+├── BackgroundBank           - Background URL data
+├── EffectBank               - Effect URL data
 └── LegendaryBank           - Special titles and descriptions
 
 Layer 2: Aggregator Banks (Data Integration)
-├── ArweaveMonsterBank      - Routes to MonsterBank1/2 based on ID
-└── ArweaveItemBank         - Routes to ItemBank1/2 based on ID
+├── MonsterBank             - Routes to MonsterBank1/2 based on ID
+└── ItemBank                - Routes to ItemBank1/2 based on ID
 
 Layer 3: Composer (SVG Assembly)
 └── ArweaveTragedyComposer  - Combines all layers with color filters
@@ -61,13 +61,13 @@ Layer 6: NFT Contract
 
 ```mermaid
 graph TD
-    MonsterBank1 --> ArweaveMonsterBank
-    MonsterBank2 --> ArweaveMonsterBank
-    ItemBank1 --> ArweaveItemBank
-    ItemBank2 --> ArweaveItemBank
+    MonsterBank1 --> MonsterBank
+    MonsterBank2 --> MonsterBank
+    ItemBank1 --> ItemBank
+    ItemBank2 --> ItemBank
     
-    ArweaveMonsterBank --> Composer
-    ArweaveItemBank --> Composer
+    MonsterBank --> Composer
+    ItemBank --> Composer
     BackgroundBank --> Composer
     EffectBank --> Composer
     
