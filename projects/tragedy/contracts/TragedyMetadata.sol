@@ -3,31 +3,19 @@ pragma solidity ^0.8.20;
 
 import "./libraries/Base64.sol";
 import "./libraries/NarrativeGenerator.sol";
-import "./ArweaveTragedyComposer.sol";
+import "./TragedyComposer.sol";
+import "./banks/monster/MonsterBank.sol";
+import "./banks/item/ItemBank.sol";
+import "./interfaces/IBackgroundBank.sol";
+import "./interfaces/IEffectBank.sol";
 
-interface IArweaveTragedyComposer {
+interface ITragedyComposer {
     function composeSVG(uint8 species, uint8 background, uint8 item, uint8 effect) external view returns (string memory);
     function filterParams(uint8) external view returns (uint16, uint16, uint16);
     function monsterBank() external view returns (address);
     function itemBank() external view returns (address);
     function backgroundBank() external view returns (address);
     function effectBank() external view returns (address);
-}
-
-interface IMonsterBank {
-    function getMonsterName(uint8 id) external view returns (string memory);
-}
-
-interface IBackgroundBank {
-    function getBackgroundName(uint8 id) external view returns (string memory);
-}
-
-interface IItemBank {
-    function getItemName(uint8 id) external view returns (string memory);
-}
-
-interface IEffectBank {
-    function getEffectName(uint8 id) external view returns (string memory);
 }
 
 interface ILegendaryBank {
@@ -41,7 +29,7 @@ interface ILegendaryBank {
  * @notice Implements proper attribute names and adds Curse+Realm synergies
  */
 contract TragedyMetadata {
-    IArweaveTragedyComposer public composer;
+    ITragedyComposer public composer;
     ILegendaryBank public legendaryBank;
     uint256 public constant SHUFFLE_SEED = 4567; // LCG multiplier (prime number) - perfect distribution
     
@@ -53,7 +41,7 @@ contract TragedyMetadata {
     }
     
     constructor(address _composer, address _legendaryBank) {
-        composer = IArweaveTragedyComposer(_composer);
+        composer = ITragedyComposer(_composer);
         legendaryBank = ILegendaryBank(_legendaryBank);
     }
     

@@ -28,7 +28,7 @@ Layer 2: Aggregator Banks (Data Integration)
 └── ItemBank                - Routes to ItemBank1/2 based on ID
 
 Layer 3: Composer (SVG Assembly)
-└── ArweaveTragedyComposer  - Combines all layers with color filters
+└── TragedyComposer         - Combines all layers with color filters
 
 Layer 4: Metadata Generator
 └── TragedyMetadata         - Generates NFT metadata JSON with synergies
@@ -53,7 +53,7 @@ Layer 6: NFT Contract
    - Clear separation of concerns
 
 3. **Flexibility**
-   - Composer handles visual assembly logic
+   - TragedyComposer handles visual assembly logic
    - Metadata manages attributes and synergy calculations
    - Easy to extend with new features
 
@@ -66,12 +66,12 @@ graph TD
     ItemBank1 --> ItemBank
     ItemBank2 --> ItemBank
     
-    MonsterBank --> Composer
-    ItemBank --> Composer
-    BackgroundBank --> Composer
-    EffectBank --> Composer
+    MonsterBank --> TragedyComposer
+    ItemBank --> TragedyComposer
+    BackgroundBank --> TragedyComposer
+    EffectBank --> TragedyComposer
     
-    Composer --> TragedyMetadata
+    TragedyComposer --> TragedyMetadata
     LegendaryBank --> TragedyMetadata
     
     TragedyMetadata --> MetadataBank
@@ -87,8 +87,8 @@ This project uses siegeNgin's complex deployment system. The deployment is confi
 
 1. **Step 1**: Deploy 7 base banks in parallel (~30 seconds)
 2. **Step 2**: Deploy 2 aggregator banks with bank addresses
-3. **Step 3**: Deploy composer with all 4 bank addresses
-4. **Step 4**: Deploy metadata generator with composer and legendary bank
+3. **Step 3**: Deploy TragedyComposer with all 4 bank addresses
+4. **Step 4**: Deploy metadata generator with TragedyComposer and legendary bank
 5. **Step 5**: Deploy metadata proxy
 6. **Step 6**: Deploy NFT contract and configure metadata bank
 

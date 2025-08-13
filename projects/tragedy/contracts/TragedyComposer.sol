@@ -6,33 +6,15 @@ import "./banks/monster/MonsterBank.sol";
 import "./banks/BackgroundBank.sol";
 import "./banks/item/ItemBank.sol";
 import "./banks/effect/EffectBank.sol";
-
-interface IMonsterBank {
-    function getMonsterSVG(uint8 id) external view returns (string memory);
-    function getMonsterName(uint8 id) external view returns (string memory);
-}
-
-interface IBackgroundBank {
-    function getBackgroundUrl(uint8 id) external view returns (string memory);
-    function getBackgroundName(uint8 id) external view returns (string memory);
-}
-
-interface IItemBank {
-    function getItemSVG(uint8 id) external view returns (string memory);
-    function getItemName(uint8 id) external view returns (string memory);
-}
-
-interface IEffectBank {
-    function getEffectUrl(uint8 id) external view returns (string memory);
-    function getEffectName(uint8 id) external view returns (string memory);
-}
+import "./interfaces/IBackgroundBank.sol";
+import "./interfaces/IEffectBank.sol";
 
 /**
- * @title ArweaveTragedyComposerV5
+ * @title TragedyComposerV5
  * @notice Composes SVGs with synergy-based item transformations
  * @dev Transforms Amulet(9)->Head(10) and Shoulder(8)->Arm(11) during synergies
  */
-contract ArweaveTragedyComposer {
+contract TragedyComposer {
     IMonsterBank public monsterBank;
     IBackgroundBank public backgroundBank;
     IItemBank public itemBank;
@@ -177,7 +159,7 @@ contract ArweaveTragedyComposer {
         return string(abi.encodePacked("data:image/svg+xml;base64,", base64));
     }
     
-    // Add getter that returns the full tuple as expected by IArweaveTragedyComposer
+    // Add getter that returns the full tuple as expected by ITragedyComposer
     function filterParams(uint8 background) external view returns (uint16, uint16, uint16) {
         return (_filterParams[background][0], _filterParams[background][1], _filterParams[background][2]);
     }

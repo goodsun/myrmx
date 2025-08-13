@@ -72,8 +72,8 @@
       "step": 3,
       "contracts": [
         {
-          "name": "ArweaveTragedyComposer",
-          "contract": "ArweaveTragedyComposer",
+          "name": "TragedyComposer",
+          "contract": "TragedyComposer",
           "constructorArgs": [
             { "ref": "MonsterBank.address" },
             { "ref": "BackgroundBank.address" },
@@ -90,7 +90,7 @@
           "name": "TragedyMetadata",
           "contract": "TragedyMetadata",
           "constructorArgs": [
-            { "ref": "ArweaveTragedyComposer.address" },
+            { "ref": "TragedyComposer.address" },
             { "ref": "LegendaryBank.address" }
           ]
         }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "./RoyaltyStandard.sol";
-import "./bank/MetadataBank.sol";
+import "./banks/MetadataBank.sol";
 
 /**
  * @title BankedNFT
