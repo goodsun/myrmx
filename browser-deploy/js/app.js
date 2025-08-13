@@ -2010,6 +2010,57 @@ document.getElementById("interfaceInteraction").addEventListener("click", () => 
   
   // Show interface interaction section
   document.getElementById("interfaceInteractionSection").classList.remove("hidden");
+  
+  // Update current network info
+  updateCurrentNetworkInfo();
+});
+
+// Update current network info display
+async function updateCurrentNetworkInfo() {
+  const networkInfo = document.getElementById("currentNetworkInfo");
+  
+  if (provider) {
+    try {
+      const network = await provider.getNetwork();
+      const chainId = network.chainId;
+      let networkName = network.name;
+      
+      // Map common chain IDs to names
+      const chainNames = {
+        1: "Ethereum Mainnet",
+        5: "Goerli Testnet",
+        11155111: "Sepolia Testnet",
+        137: "Polygon Mainnet",
+        80001: "Mumbai Testnet",
+        80002: "Amoy Testnet",
+        56: "BSC Mainnet",
+        97: "BSC Testnet",
+        43114: "Avalanche Mainnet",
+        43113: "Avalanche Testnet",
+        42161: "Arbitrum One",
+        421613: "Arbitrum Goerli",
+        10: "Optimism Mainnet",
+        420: "Optimism Goerli"
+      };
+      
+      if (chainNames[chainId]) {
+        networkName = chainNames[chainId];
+      }
+      
+      networkInfo.innerHTML = `Currently connected to: <span class="font-semibold">${networkName}</span> (Chain ID: ${chainId})`;
+    } catch (error) {
+      networkInfo.innerHTML = '<span class="text-gray-500">Network information not available</span>';
+    }
+  } else {
+    networkInfo.innerHTML = '<span class="text-gray-500">Please connect your wallet to see the current network</span>';
+  }
+}
+
+// Update network selection listener
+document.getElementById("interfaceNetworkSelect").addEventListener("change", (e) => {
+  if (e.target.value === "current") {
+    updateCurrentNetworkInfo();
+  }
 });
 
 // Load interface contract button
@@ -2037,31 +2088,69 @@ document.getElementById("loadInterfaceContract").addEventListener("click", async
     
     const abi = await response.json();
     
-    // Check if provider is available
-    if (!provider && !signer) {
-      // Try to create a default provider
-      const networkMap = {
-        'polygon': 'https://polygon-rpc.com',
-        'amoy': 'https://rpc-amoy.polygon.technology',
-        'mainnet': 'https://eth-mainnet.g.alchemy.com/v2/demo',
-        'sepolia': 'https://rpc.sepolia.org'
-      };
-      
-      if (networkMap[network]) {
-        provider = new ethers.providers.JsonRpcProvider(networkMap[network]);
-      } else {
-        showMessage("Please connect your wallet first", "error");
+    // Handle network selection
+    let useProvider = provider;
+    let networkDisplay = network;
+    
+    if (network === "current") {
+      // Use current connected provider
+      if (!provider && !signer) {
+        showMessage("Please connect your wallet first to use the current network", "error");
         return;
+      }
+      useProvider = provider || signer.provider;
+      
+      // Get network name for display
+      try {
+        const currentNetwork = await useProvider.getNetwork();
+        const chainId = currentNetwork.chainId;
+        const chainNames = {
+          1: "Ethereum Mainnet",
+          5: "Goerli Testnet",
+          11155111: "Sepolia Testnet",
+          137: "Polygon Mainnet",
+          80001: "Mumbai Testnet",
+          80002: "Amoy Testnet",
+          56: "BSC Mainnet",
+          97: "BSC Testnet",
+          43114: "Avalanche Mainnet",
+          43113: "Avalanche Testnet",
+          42161: "Arbitrum One",
+          421613: "Arbitrum Goerli",
+          10: "Optimism Mainnet",
+          420: "Optimism Goerli"
+        };
+        networkDisplay = chainNames[chainId] || `Chain ID: ${chainId}`;
+      } catch {
+        networkDisplay = "Current Network";
+      }
+    } else {
+      // Use specific network
+      if (!provider && !signer) {
+        // Create a default provider for the selected network
+        const networkMap = {
+          'polygon': 'https://polygon-rpc.com',
+          'amoy': 'https://rpc-amoy.polygon.technology',
+          'mainnet': 'https://eth-mainnet.g.alchemy.com/v2/demo',
+          'sepolia': 'https://rpc.sepolia.org'
+        };
+        
+        if (networkMap[network]) {
+          useProvider = new ethers.providers.JsonRpcProvider(networkMap[network]);
+        } else {
+          showMessage("Unknown network selected", "error");
+          return;
+        }
       }
     }
     
     // Update display
     document.getElementById("interfaceContractName").textContent = contractName;
     document.getElementById("interfaceContractAddressDisplay").textContent = contractAddress;
-    document.getElementById("interfaceNetworkDisplay").textContent = network;
+    document.getElementById("interfaceNetworkDisplay").textContent = networkDisplay;
     
-    // Create contract instance with provider first
-    currentInterfaceContract = new ethers.Contract(contractAddress, abi, provider);
+    // Create contract instance with provider
+    currentInterfaceContract = new ethers.Contract(contractAddress, abi, useProvider);
     
     // Show contract area
     document.getElementById("interfaceContractArea").classList.remove("hidden");
