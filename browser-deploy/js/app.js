@@ -2242,13 +2242,23 @@ document.getElementById("loadInterfaceContract").addEventListener("click", async
     // Create contract instance with provider
     currentInterfaceContract = new ethers.Contract(contractAddress, abi, useProvider);
     
+    // Verify contract by trying to get bytecode
+    try {
+      const code = await useProvider.getCode(contractAddress);
+      if (code === '0x') {
+        showMessage(`Warning: No contract found at ${contractAddress} on ${networkDisplay}. The contract may not be deployed on this network.`, "warning");
+      }
+    } catch (e) {
+      console.warn("Could not verify contract existence:", e);
+    }
+    
     // Show contract area
     document.getElementById("interfaceContractArea").classList.remove("hidden");
     
     // Load functions
     loadInterfaceFunctions(abi);
     
-    showMessage(`Loaded ${contractName} at ${contractAddress}`, "success");
+    showMessage(`Loaded ${contractName} at ${contractAddress} on ${networkDisplay}`, "success");
   } catch (error) {
     showMessage("Failed to load contract: " + error.message, "error");
     console.error("Contract loading error:", error);
@@ -2443,7 +2453,15 @@ async function executeInterfaceFunction(func, type) {
     
     // Handle specific error codes
     if (error.code === 'CALL_EXCEPTION') {
-      if (!errorMessage.includes('execution reverted')) {
+      // For empty data response, it usually means wrong network or contract doesn't exist
+      if (error.data === '0x' || error.data === null) {
+        errorMessage = `Contract call failed. Please check:
+          1. The contract exists at this address on the selected network
+          2. The ABI matches the deployed contract
+          3. You are connected to the correct network
+          
+          Method called: ${error.method || 'unknown'}`;
+      } else if (!errorMessage.includes('execution reverted')) {
         errorMessage = `Call failed: ${errorMessage}`;
       }
     } else if (error.code === 'NETWORK_ERROR') {
