@@ -17,6 +17,10 @@ artifacts/
 typechain/
 typechain-types/
 
+# Generated interface files
+interface/
+projects/*/interface/
+
 # Hardhat ignores
 *.dbg.json
 

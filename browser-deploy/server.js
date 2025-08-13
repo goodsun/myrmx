@@ -826,7 +826,8 @@ app.post('/api/projects/:projectName/clean', async (req, res) => {
             'coverage',
             '.coverage_cache',
             'typechain',
-            'typechain-types'
+            'typechain-types',
+            'interface'  // Add interface directory to clean patterns
         ];
         
         // Read .gitignore if exists
@@ -942,6 +943,7 @@ app.get('/api/projects/:projectName/status', async (req, res) => {
             hasDependencies: await checkDependencies(projectPath),
             hasArtifacts: false,
             hasCache: false,
+            hasInterfaces: false,
             cleanableSize: 0
         };
         
@@ -955,6 +957,14 @@ app.get('/api/projects/:projectName/status', async (req, res) => {
         try {
             await fs.access(path.join(projectPath, 'cache'));
             status.hasCache = true;
+        } catch {}
+        
+        // Check for interface files
+        try {
+            const interfacePath = path.join(projectPath, 'interface');
+            await fs.access(interfacePath);
+            const files = await fs.readdir(interfacePath);
+            status.hasInterfaces = files.length > 0;
         } catch {}
         
         res.json(status);

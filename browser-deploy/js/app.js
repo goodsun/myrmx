@@ -151,6 +151,10 @@ async function loadProjectStatus() {
         value: status.hasArtifacts ? "✅ Present" : "❌ Not built",
       },
       { label: "Cache", value: status.hasCache ? "✅ Present" : "❌ Empty" },
+      {
+        label: "Interface files",
+        value: status.hasInterfaces ? "✅ Generated" : "❌ Not generated",
+      },
     ];
 
     items.forEach((item) => {
@@ -174,6 +178,7 @@ async function cleanProject() {
       `- node_modules\n` +
       `- artifacts\n` +
       `- cache\n` +
+      `- interface (generated ABI/interface files)\n` +
       `- other .gitignore entries\n\n` +
       `Are you sure you want to clean the project "${selectedProject}"?`
   );

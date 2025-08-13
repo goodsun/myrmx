@@ -1,14 +1,28 @@
-node_modules
-.env
-coverage
-coverage.json
-typechain
-typechain-types
+# Dependencies
+node_modules/
 
 # Hardhat files
-cache
-artifacts
+cache/
+artifacts/
+typechain/
+typechain-types/
 
-# Editor
-.vscode
-.idea
+# Generated interface files
+interface/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
