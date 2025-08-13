@@ -1888,9 +1888,10 @@ function showDeploymentSummary() {
             );
 
             // Scroll to interaction section
-            document
-              .getElementById("contractInteraction")
-              .scrollIntoView({ behavior: "smooth" });
+            const interactionSection = document.getElementById("interactionSection");
+            if (interactionSection) {
+              interactionSection.scrollIntoView({ behavior: "smooth" });
+            }
           } else {
             showMessage("Could not find BankedNFT ABI", "error");
           }
