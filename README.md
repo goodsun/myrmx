@@ -1,16 +1,17 @@
 # siegeNgin
 
 <div align="center">
+  <h3>Hardhat Browser Deploy Tool</h3>
+  <p>ブラウザ上でMetaMaskを使ってHardhatプロジェクトのスマートコントラクトをデプロイできるツールです。<br>
+  コマンドラインを使わずに、GUIで簡単にコントラクトのデプロイとインタラクションが可能です。</p>
+</div>
+
+<div align="center">
   <img src="docs/images/trebuchet.jpg" alt="Trebuchet - Medieval Siege Engine" width="600">
   
   *A trebuchet at Château de Castelnaud (Image: [ChrisO](https://commons.wikimedia.org/wiki/User:ChrisO), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0), via Wikimedia Commons)*
 </div>
 
-<div align="center">
-  <h3>Hardhat Browser Deploy Tool</h3>
-  <p>ブラウザ上でMetaMaskを使ってHardhatプロジェクトのスマートコントラクトをデプロイできるツールです。<br>
-  コマンドラインを使わずに、GUIで簡単にコントラクトのデプロイとインタラクションが可能です。</p>
-</div>
 
 ## 特徴
 
