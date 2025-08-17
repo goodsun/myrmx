@@ -3,10 +3,11 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 
-contract DAOShop is ERC721, ERC721URIStorage, Ownable {
+contract DAOShop is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable {
     uint256 private _nextTokenId;
 
     struct ItemInfo {
@@ -21,6 +22,10 @@ contract DAOShop is ERC721, ERC721URIStorage, Ownable {
     }
 
     mapping(uint256 => ItemInfo) public items;
+    
+    // creator別のトークンID管理
+    mapping(address => uint256[]) private _creatorTokens;
+    mapping(uint256 => uint256) private _creatorTokensIndex;
 
     event ItemCreated(uint256 indexed tokenId, address indexed creator, string title);
     event ItemUpdated(uint256 indexed tokenId, address indexed updater);
@@ -54,6 +59,10 @@ contract DAOShop is ERC721, ERC721URIStorage, Ownable {
             status: status,
             creator: msg.sender
         });
+        
+        // creatorのトークンリストに追加
+        _creatorTokensIndex[tokenId] = _creatorTokens[msg.sender].length;
+        _creatorTokens[msg.sender].push(tokenId);
 
         emit ItemCreated(tokenId, msg.sender, title);
         return tokenId;
@@ -89,13 +98,51 @@ contract DAOShop is ERC721, ERC721URIStorage, Ownable {
     }
 
     function burnItem(uint256 tokenId) public onlyItemCreator(tokenId) {
+        address creator = items[tokenId].creator;
+        
+        // creatorのトークンリストから削除
+        uint256 lastTokenIndex = _creatorTokens[creator].length - 1;
+        uint256 tokenIndex = _creatorTokensIndex[tokenId];
+        
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _creatorTokens[creator][lastTokenIndex];
+            _creatorTokens[creator][tokenIndex] = lastTokenId;
+            _creatorTokensIndex[lastTokenId] = tokenIndex;
+        }
+        
+        _creatorTokens[creator].pop();
+        delete _creatorTokensIndex[tokenId];
+        
         _burn(tokenId);
         delete items[tokenId];
+    }
+
+    // Creator別のenumeration関数
+    function creatorTokenCount(address creator) public view returns (uint256) {
+        return _creatorTokens[creator].length;
+    }
+    
+    function tokenOfCreatorByIndex(address creator, uint256 index) public view returns (uint256) {
+        require(index < _creatorTokens[creator].length, "Index out of bounds");
+        return _creatorTokens[creator][index];
+    }
+    
+    function getCreatorTokens(address creator) public view returns (uint256[] memory) {
+        return _creatorTokens[creator];
     }
 
     // Override functions
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
         super._burn(tokenId);
+    }
+    
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 batchSize
+    ) internal override(ERC721, ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
     function _generateAttributes(ItemInfo memory item) private pure returns (bytes memory) {
@@ -137,7 +184,7 @@ contract DAOShop is ERC721, ERC721URIStorage, Ownable {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721URIStorage)
+        override(ERC721, ERC721URIStorage, ERC721Enumerable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
