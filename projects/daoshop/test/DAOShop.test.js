@@ -18,6 +18,8 @@ describe("DAOShop", function () {
         it("新しい商品を作成できる", async function () {
             const tx = await daoShop.connect(addr1).createItem(
                 "テスト商品",
+                "これはテスト商品の説明です",
+                "https://example.com/image.jpg",
                 "0x123/1",
                 "test@example.com",
                 "1000円",
@@ -40,6 +42,8 @@ describe("DAOShop", function () {
         beforeEach(async function () {
             await daoShop.connect(addr1).createItem(
                 "テスト商品",
+                "これはテスト商品の説明です",
+                "https://example.com/image.jpg",
                 "0x123/1",
                 "test@example.com",
                 "1000円",
@@ -51,6 +55,8 @@ describe("DAOShop", function () {
             await daoShop.connect(addr1).updateItem(
                 0,
                 "更新された商品",
+                "更新された商品の説明",
+                "https://example.com/updated.jpg",
                 "0x456/2",
                 "new@example.com",
                 "2000円",
@@ -68,6 +74,8 @@ describe("DAOShop", function () {
                 daoShop.connect(addr2).updateItem(
                     0,
                     "不正な更新",
+                    "不正な説明",
+                    "https://example.com/hack.jpg",
                     "0x789/3",
                     "hacker@example.com",
                     "0円",
@@ -81,6 +89,8 @@ describe("DAOShop", function () {
         beforeEach(async function () {
             await daoShop.connect(addr1).createItem(
                 "テスト商品",
+                "これはテスト商品の説明です",
+                "https://example.com/image.jpg",
                 "0x123/1",
                 "test@example.com",
                 "1000円",
@@ -105,6 +115,8 @@ describe("DAOShop", function () {
         it("商品作成時にNFTが発行される", async function () {
             await daoShop.connect(addr1).createItem(
                 "テスト商品",
+                "これはテスト商品の説明です",
+                "https://example.com/image.jpg",
                 "0x123/1",
                 "test@example.com",
                 "1000円",
@@ -113,6 +125,36 @@ describe("DAOShop", function () {
 
             expect(await daoShop.ownerOf(0)).to.equal(addr1.address);
             expect(await daoShop.balanceOf(addr1.address)).to.equal(1);
+        });
+    });
+
+    describe("tokenURIメタデータ", function () {
+        beforeEach(async function () {
+            await daoShop.connect(addr1).createItem(
+                "テスト商品",
+                "これはテスト商品の説明です",
+                "https://example.com/image.jpg",
+                "0x123/1",
+                "test@example.com",
+                "1000円",
+                "販売中"
+            );
+        });
+
+        it("正しいメタデータを返す", async function () {
+            const uri = await daoShop.tokenURI(0);
+            expect(uri).to.include("data:application/json;base64,");
+            
+            // Base64デコードしてJSONを検証
+            const base64 = uri.split("data:application/json;base64,")[1];
+            const json = JSON.parse(Buffer.from(base64, 'base64').toString());
+            
+            expect(json.name).to.equal("テスト商品");
+            expect(json.description).to.equal("これはテスト商品の説明です");
+            expect(json.image).to.equal("https://example.com/image.jpg");
+            expect(json.attributes).to.have.lengthOf(4);
+            expect(json.attributes[0].trait_type).to.equal("Price");
+            expect(json.attributes[0].value).to.equal("1000円");
         });
     });
 });
