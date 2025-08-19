@@ -714,9 +714,20 @@ async function deployContract() {
 
     // Deploy with gas limit
     showMessage("Deploying contract...", "info");
-    const deployTx = await factory.deploy(...constructorParams, {
-      gasLimit: gasEstimate.mul(110).div(100), // 10% buffer
-    });
+    
+    // Get current network
+    const network = await provider.getNetwork();
+    let deployOptions = {
+      gasLimit: gasEstimate.mul(150).div(100), // 50% buffer
+    };
+    
+    // For Amoy, double the gas price
+    if (network.chainId === 80002) {
+      const gasPrice = await provider.getGasPrice();
+      deployOptions.gasPrice = gasPrice.mul(2);
+    }
+    
+    const deployTx = await factory.deploy(...constructorParams, deployOptions);
     showMessage("Transaction sent. Waiting for confirmation...", "info");
 
     const deployed = await deployTx.deployed();
@@ -1720,7 +1731,38 @@ async function deployContractWithData(deployData) {
     `Deploying ${deployData.contractName} with args:`,
     deployData.constructorArgs
   );
-  const contract = await factory.deploy(...deployData.constructorArgs);
+  
+  // Get network and prepare deploy options
+  const network = await provider.getNetwork();
+  let deployOptions = {};
+  
+  // Estimate gas
+  try {
+    const deployTransaction = factory.getDeployTransaction(...deployData.constructorArgs);
+    const gasEstimate = await provider.estimateGas(deployTransaction);
+    deployOptions.gasLimit = gasEstimate.mul(150).div(100); // 50% buffer
+  } catch (error) {
+    console.error(`Gas estimation failed for ${deployData.contractName}, using default`);
+    // Use high default gas limit for Amoy
+    if (network.chainId === 80002) {
+      // Large contracts need more gas
+      if (deployData.contractName === "TragedyMetadata" || deployData.contractName === "BankedNFT") {
+        deployOptions.gasLimit = ethers.BigNumber.from("10000000"); // 10M gas
+      } else {
+        deployOptions.gasLimit = ethers.BigNumber.from("5000000"); // 5M gas
+      }
+    } else {
+      deployOptions.gasLimit = ethers.BigNumber.from("3000000"); // 3M gas default
+    }
+  }
+  
+  // For Amoy, double the gas price
+  if (network.chainId === 80002) {
+    const gasPrice = await provider.getGasPrice();
+    deployOptions.gasPrice = gasPrice.mul(2);
+  }
+  
+  const contract = await factory.deploy(...deployData.constructorArgs, deployOptions);
   await contract.deployed();
 
   console.log(`${deployData.contractName} deployed at:`, contract.address);
