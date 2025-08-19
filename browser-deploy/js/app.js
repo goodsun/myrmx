@@ -2474,8 +2474,24 @@ async function executeInterfaceFunction(func, type) {
     // More detailed error handling
     let errorMessage = error.message;
     
-    // Extract revert reason from various error formats
-    if (error.reason) {
+    // Log full error for debugging
+    console.error('Full error object:', error);
+    
+    // Handle MetaMask RPC errors
+    if (error.code === -32603) {
+      // Internal JSON-RPC error - try to get more details
+      if (error.data && error.data.message) {
+        errorMessage = `MetaMask error: ${error.data.message}`;
+      } else if (error.stack && error.stack.includes('message')) {
+        // Try to extract message from stack
+        const stackMatch = error.stack.match(/"message":\s*"([^"]+)"/);
+        if (stackMatch) {
+          errorMessage = `MetaMask error: ${stackMatch[1]}`;
+        }
+      } else {
+        errorMessage = 'MetaMask internal error. Please check: 1) Gas limit, 2) ETH balance, 3) Network connection';
+      }
+    } else if (error.reason) {
       errorMessage = error.reason;
     } else if (error.data && error.data.message) {
       errorMessage = error.data.message;
