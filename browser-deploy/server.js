@@ -299,6 +299,23 @@ async function listDirectoryContents(dirPath, prefix = '') {
     return items;
 }
 
+// Recursively find all JSON files in artifacts
+async function findAllContractFiles(dir, files = []) {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        
+        if (entry.isDirectory()) {
+            await findAllContractFiles(fullPath, files);
+        } else if (entry.isFile() && entry.name.endsWith('.json') && !entry.name.includes('.dbg.')) {
+            files.push(fullPath);
+        }
+    }
+    
+    return files;
+}
+
 // Generate ABI and Interface files after compilation
 async function generateABIandInterface(projectPath) {
     const artifactsPath = path.join(projectPath, 'artifacts/contracts');
@@ -307,43 +324,44 @@ async function generateABIandInterface(projectPath) {
     // Create interface directory
     await fs.mkdir(interfacePath, { recursive: true });
     
-    // Process all compiled contracts
-    const contractDirs = await fs.readdir(artifactsPath, { withFileTypes: true });
+    // Find all contract JSON files recursively
+    const contractFiles = await findAllContractFiles(artifactsPath);
     
-    for (const dir of contractDirs) {
-        if (dir.isDirectory() && dir.name.endsWith('.sol')) {
-            const contractFiles = await fs.readdir(path.join(artifactsPath, dir.name));
+    console.log(`Found ${contractFiles.length} contract files to process`);
+    
+    for (const contractPath of contractFiles) {
+        const contractName = path.basename(contractPath, '.json');
+        
+        // Skip interface contracts (they start with I)
+        if (contractName.startsWith('I')) {
+            continue;
+        }
+        
+        try {
+            // Read compiled contract data
+            const contractData = await fs.readFile(contractPath, 'utf8');
+            const parsed = JSON.parse(contractData);
             
-            for (const file of contractFiles) {
-                if (file.endsWith('.json') && !file.includes('.dbg.')) {
-                    const contractName = path.basename(file, '.json');
-                    const contractPath = path.join(artifactsPath, dir.name, file);
-                    
-                    try {
-                        // Read compiled contract data
-                        const contractData = await fs.readFile(contractPath, 'utf8');
-                        const parsed = JSON.parse(contractData);
-                        
-                        // Skip if no ABI
-                        if (!parsed.abi || parsed.abi.length === 0) continue;
-                        
-                        // Save ABI file
-                        const abiPath = path.join(interfacePath, `${contractName}.abi.json`);
-                        await fs.writeFile(abiPath, JSON.stringify(parsed.abi, null, 2));
-                        
-                        // Generate Solidity interface
-                        const interfaceContent = generateSolidityInterface(contractName, parsed.abi);
-                        if (interfaceContent) {
-                            const interfaceSolPath = path.join(interfacePath, `I${contractName}.sol`);
-                            await fs.writeFile(interfaceSolPath, interfaceContent);
-                        }
-                        
-                        console.log(`Generated ABI and interface for ${contractName}`);
-                    } catch (error) {
-                        console.error(`Failed to process ${contractName}:`, error.message);
-                    }
-                }
+            // Skip if no ABI
+            if (!parsed.abi || parsed.abi.length === 0) {
+                console.log(`Skipping ${contractName} - no ABI`);
+                continue;
             }
+            
+            // Save ABI file
+            const abiPath = path.join(interfacePath, `${contractName}.abi.json`);
+            await fs.writeFile(abiPath, JSON.stringify(parsed.abi, null, 2));
+            
+            // Generate Solidity interface
+            const interfaceContent = generateSolidityInterface(contractName, parsed.abi);
+            if (interfaceContent) {
+                const interfaceSolPath = path.join(interfacePath, `I${contractName}.sol`);
+                await fs.writeFile(interfaceSolPath, interfaceContent);
+            }
+            
+            console.log(`Generated ABI and interface for ${contractName}`);
+        } catch (error) {
+            console.error(`Failed to process ${contractName}:`, error.message);
         }
     }
 }
