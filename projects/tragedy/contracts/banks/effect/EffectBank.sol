@@ -28,7 +28,7 @@ contract EffectBank {
     function getEffectName(uint8 EffectId) public view returns (string memory) {
         if (EffectId < 4) {
             return bank1.getEffectName(EffectId);
-        } else if (EffectId < 18) {
+        } else if (EffectId < 8) {
             return bank2.getEffectName(EffectId);
         } else if (EffectId < 12) {
             return bank3.getEffectName(EffectId);
