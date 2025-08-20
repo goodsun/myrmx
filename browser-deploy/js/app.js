@@ -1668,20 +1668,33 @@ function renderDeploymentSteps() {
       const isCompleted = index < currentDeploymentStep;
       const isActive = index === currentDeploymentStep;
       const statusIcon = isCompleted ? "✅" : isActive ? "🔄" : "⏳";
+      const stepHasArgs = step.contracts.some(c => c.constructorArgs && c.constructorArgs.length > 0);
 
       return `
             <div class="p-3 border rounded ${
               isActive ? "border-purple-500 bg-purple-100" : "border-gray-300"
             }">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-2">
                     <h4 class="font-semibold">${statusIcon} Step ${
         step.step
       }: Deploy ${step.contracts.length} contract(s)</h4>
-                    ${
-                      isActive
-                        ? '<span class="text-sm text-purple-600">Active</span>'
-                        : ""
-                    }
+                    <div class="flex items-center gap-2">
+                      ${
+                        isActive
+                          ? '<span class="text-sm text-purple-600">Active</span>'
+                          : ""
+                      }
+                      ${
+                        !isCompleted && stepHasArgs
+                          ? `<button onclick="toggleStepArgs(${index})" class="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">⚙️ Config</button>`
+                          : ""
+                      }
+                      ${
+                        !isCompleted && index >= currentDeploymentStep
+                          ? `<button onclick="startFromStep(${index})" class="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Start Step</button>`
+                          : ""
+                      }
+                    </div>
                 </div>
                 <ul class="mt-2 text-sm text-gray-600">
                     ${step.contracts
@@ -1694,7 +1707,8 @@ function renderDeploymentSteps() {
                           <span class="font-medium">• ${c.name}</span>
                           ${
                             address
-                              ? `<span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>`
+                              ? `<span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+                                 <button onclick="copyAddress('${address}')" class="ml-1 text-blue-500 hover:text-blue-700" title="Copy address">📋</button>`
                               : `<span class="ml-2 text-gray-400 text-xs">pending</span>`
                           }
                         </li>
@@ -1703,6 +1717,10 @@ function renderDeploymentSteps() {
                       )
                       .join("")}
                 </ul>
+                <div id="step-args-${index}" class="mt-3 p-3 bg-gray-50 rounded hidden">
+                  <h5 class="text-sm font-semibold mb-2">Constructor Arguments:</h5>
+                  ${renderStepArgsForm(step, index)}
+                </div>
             </div>
         `;
     })
@@ -1717,8 +1735,117 @@ function updateContractAddressInUI(contractName, address) {
     contractElement.innerHTML = `
       <span class="font-medium">• ${contractName}</span>
       <span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+      <button onclick="copyAddress('${address}')" class="ml-1 text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
     `;
   }
+}
+
+// Function to copy address to clipboard
+function copyAddress(address) {
+  navigator.clipboard.writeText(address).then(() => {
+    showMessage(`Address ${address} copied to clipboard!`, "success");
+  }).catch(err => {
+    console.error('Failed to copy address:', err);
+    showMessage("Failed to copy address", "error");
+  });
+}
+
+// Function to toggle step arguments form
+function toggleStepArgs(stepIndex) {
+  const argsDiv = document.getElementById(`step-args-${stepIndex}`);
+  if (argsDiv) {
+    argsDiv.classList.toggle('hidden');
+  }
+}
+
+// Function to render step arguments form
+function renderStepArgsForm(step, stepIndex) {
+  let formHtml = '<div class="space-y-2">';
+  
+  step.contracts.forEach((contract, contractIndex) => {
+    if (contract.constructorArgs && contract.constructorArgs.length > 0) {
+      formHtml += `
+        <div class="border-t pt-2">
+          <h6 class="text-xs font-semibold text-gray-700">${contract.name}:</h6>
+          <div class="space-y-1 mt-1">
+      `;
+      
+      contract.constructorArgs.forEach((arg, argIndex) => {
+        const inputId = `arg-${stepIndex}-${contractIndex}-${argIndex}`;
+        const defaultValue = typeof arg === 'object' && arg.ref ? arg.ref : arg;
+        formHtml += `
+          <div class="flex items-center space-x-2">
+            <label class="text-xs text-gray-600 w-24" for="${inputId}">Arg ${argIndex + 1}:</label>
+            <input 
+              id="${inputId}" 
+              type="text" 
+              value="${defaultValue}" 
+              class="flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-500"
+              placeholder="Enter value or reference"
+            />
+          </div>
+        `;
+      });
+      
+      formHtml += '</div></div>';
+    }
+  });
+  
+  formHtml += `
+    <button 
+      onclick="updateStepArgs(${stepIndex})" 
+      class="mt-2 bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600"
+    >
+      Update Arguments
+    </button>
+  </div>`;
+  
+  return formHtml;
+}
+
+// Function to update step arguments
+function updateStepArgs(stepIndex) {
+  const step = deploymentConfig.deploymentOrder[stepIndex];
+  
+  step.contracts.forEach((contract, contractIndex) => {
+    if (contract.constructorArgs && contract.constructorArgs.length > 0) {
+      contract.constructorArgs.forEach((arg, argIndex) => {
+        const inputId = `arg-${stepIndex}-${contractIndex}-${argIndex}`;
+        const input = document.getElementById(inputId);
+        if (input) {
+          const value = input.value;
+          // Check if it's a reference
+          if (value.includes('.address')) {
+            contract.constructorArgs[argIndex] = { ref: value };
+          } else {
+            // Try to parse as number if it looks like one
+            if (!isNaN(value) && value !== '') {
+              contract.constructorArgs[argIndex] = value.includes('.') ? parseFloat(value) : parseInt(value);
+            } else {
+              contract.constructorArgs[argIndex] = value;
+            }
+          }
+        }
+      });
+    }
+  });
+  
+  showMessage(`Arguments updated for step ${step.step}`, "success");
+  toggleStepArgs(stepIndex);
+}
+
+// Function to start deployment from specific step
+async function startFromStep(stepIndex) {
+  if (!deploymentConfig || !signer) {
+    showMessage("Cannot start deployment: missing configuration or wallet", "error");
+    return;
+  }
+  
+  currentDeploymentStep = stepIndex;
+  renderDeploymentSteps();
+  
+  // Continue with normal deployment flow from this step
+  startComplexDeployment();
 }
 
 async function startComplexDeployment() {
@@ -2739,3 +2866,10 @@ document.getElementById("interfaceLoadEvents").addEventListener("click", async (
     showMessage("Failed to load events: " + error.message, "error");
   }
 });
+
+
+// Make functions available globally for onclick handlers
+window.copyAddress = copyAddress;
+window.toggleStepArgs = toggleStepArgs;
+window.updateStepArgs = updateStepArgs;
+window.startFromStep = startFromStep;
