@@ -1687,16 +1687,17 @@ function renderDeploymentSteps() {
                     ${step.contracts
                       .map(
                         (c) => {
-                          const isDeployed = window.deployedContracts && window.deployedContracts[c.name];
+                          const address = deployedAddresses[c.name] || (window.deployedContracts && window.deployedContracts[c.name]);
+                          const isDeployed = !!address;
                           return `
-                        <li class="ml-4 ${isDeployed ? 'text-green-600' : ''}">• ${c.name} ${
-                          isDeployed
-                            ? `✅ (${window.deployedContracts[c.name].substring(
-                                0,
-                                8
-                              )}...)`
-                            : ""
-                        }</li>
+                        <li class="ml-4 ${isDeployed ? 'text-green-600' : ''}" id="contract-${c.name}">
+                          <span class="font-medium">• ${c.name}</span>
+                          ${
+                            address
+                              ? `<span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>`
+                              : `<span class="ml-2 text-gray-400 text-xs">pending</span>`
+                          }
+                        </li>
                     `;
                         }
                       )
@@ -1706,6 +1707,18 @@ function renderDeploymentSteps() {
         `;
     })
     .join("");
+}
+
+// New function to update contract address in UI immediately
+function updateContractAddressInUI(contractName, address) {
+  const contractElement = document.getElementById(`contract-${contractName}`);
+  if (contractElement) {
+    contractElement.classList.add('text-green-600');
+    contractElement.innerHTML = `
+      <span class="font-medium">• ${contractName}</span>
+      <span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+    `;
+  }
 }
 
 async function startComplexDeployment() {
@@ -1774,10 +1787,12 @@ async function startComplexDeployment() {
         });
         const results = await Promise.all(deployPromises);
 
-        // Store addresses
+        // Store addresses and update UI immediately
         results.forEach((address, index) => {
-          deployedAddresses[deployData.deploymentData[index].contractName] =
-            address;
+          const contractName = deployData.deploymentData[index].contractName;
+          deployedAddresses[contractName] = address;
+          // Update UI immediately after each deployment
+          updateContractAddressInUI(contractName, address);
         });
       } else {
         // Deploy sequentially
@@ -1789,6 +1804,8 @@ async function startComplexDeployment() {
             showMessage(`Deploying ${data.contractName}...`, "info");
             const address = await deployContractWithData(data);
             deployedAddresses[data.contractName] = address;
+            // Update UI immediately after deployment
+            updateContractAddressInUI(data.contractName, address);
           }
 
           // Execute post-deployment functions if any
@@ -1870,9 +1887,18 @@ async function deployContractWithData(deployData) {
   }
   
   const contract = await factory.deploy(...deployData.constructorArgs, deployOptions);
+  
+  // Show deploying status
+  showMessage(`Waiting for ${deployData.contractName} to be mined...`, "info");
+  
   await contract.deployed();
 
   console.log(`${deployData.contractName} deployed at:`, contract.address);
+  
+  // Update UI immediately when deployment is confirmed
+  updateContractAddressInUI(deployData.contractName, contract.address);
+  showMessage(`${deployData.contractName} deployed successfully at ${contract.address}`, "success");
+  
   return contract.address;
 }
 
