@@ -107,9 +107,11 @@ contract TragedyComposer {
         ));
         
         // Layer 1: Background (from Arweave URL)
-        string memory bgUrl = backgroundBank.getBackgroundUrl(background);
+        string memory bgSvg = backgroundBank.getBackgroundSVG(background);
+        // Embed background SVG as data URI
+        string memory bgDataUri = svgToBase64DataUri(bgSvg);
         svg = string(abi.encodePacked(svg,
-            '<image href="', bgUrl, '" x="0" y="0" width="48" height="48"/>'
+            '<image href="', bgDataUri, '" x="0" y="0" width="48" height="48"/>'
         ));
         
         // Layer 2: Monster with color filter (from on-chain SVG)
@@ -129,9 +131,11 @@ contract TragedyComposer {
         ));
         
         // Layer 4: Effect (from Arweave URL) 
-        string memory effectUrl = effectBank.getEffectUrl(effect);
+        string memory effectSvg = effectBank.getEffectSVG(effect);
+        // Embed effect SVG as data URI
+        string memory effectDataUri = svgToBase64DataUri(effectSvg);
         svg = string(abi.encodePacked(svg,
-            '<image href="', effectUrl, '" x="0" y="0" width="48" height="48"/>'
+            '<image href="', effectDataUri, '" x="0" y="0" width="48" height="48"/>'
         ));
         
         svg = string(abi.encodePacked(svg, '</svg>'));

@@ -28,14 +28,32 @@
           "parallel": true
         },
         {
-          "name": "BackgroundBank",
-          "contract": "BackgroundBank",
+          "name": "BackgroundBank1",
+          "contract": "BackgroundBank1",
           "constructorArgs": [],
           "parallel": true
         },
         {
-          "name": "EffectBank",
-          "contract": "EffectBank",
+          "name": "BackgroundBank2",
+          "contract": "BackgroundBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "EffectBank1",
+          "contract": "EffectBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "EffectBank2",
+          "contract": "EffectBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "EffectBank3",
+          "contract": "EffectBank3",
           "constructorArgs": [],
           "parallel": true
         },
@@ -64,6 +82,23 @@
           "constructorArgs": [
             { "ref": "ItemBank1.address" },
             { "ref": "ItemBank2.address" }
+          ]
+        },
+        {
+          "name": "BackgroundBank",
+          "contract": "BackgroundBank",
+          "constructorArgs": [
+            { "ref": "BackgroundBank1.address" },
+            { "ref": "BackgroundBank2.address" }
+          ]
+        },
+        {
+          "name": "EffectBank",
+          "contract": "EffectBank",
+          "constructorArgs": [
+            { "ref": "EffectBank1.address" },
+            { "ref": "EffectBank2.address" },
+            { "ref": "EffectBank3.address" }
           ]
         }
       ]
