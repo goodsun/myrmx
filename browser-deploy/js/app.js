@@ -1815,7 +1815,7 @@ async function startComplexDeployment() {
                 `Executing ${postDeploy.method} on ${data.contractName}...`,
                 "info"
               );
-              await executePostDeploy(address, data.abi, postDeploy);
+              await executePostDeploy(deployedAddresses[data.contractName], data.abi, postDeploy);
             }
           }
         }
