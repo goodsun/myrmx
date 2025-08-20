@@ -1526,9 +1526,16 @@ function showComplexDeploymentUI() {
             )} contracts in ${
       deploymentConfig.deploymentOrder.length
     } steps.</p>
+            <div id="deployedAddresses" class="mb-4 p-3 bg-blue-50 rounded hidden">
+                <h4 class="text-sm font-semibold mb-2">Previously Deployed Contracts:</h4>
+                <div id="deployedList" class="text-xs space-y-1"></div>
+            </div>
             <div id="deploymentSteps" class="space-y-2 mb-4"></div>
             <button id="startComplexDeploy" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
                 Start Deployment Process
+            </button>
+            <button id="resumeDeploy" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ml-2 hidden">
+                Resume Deployment
             </button>
             <button id="resetDeploy" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 ml-2">
                 Reset
@@ -1552,7 +1559,13 @@ function showComplexDeploymentUI() {
     document
       .getElementById("resetDeploy")
       .addEventListener("click", resetDeployment);
+    document
+      .getElementById("resumeDeploy")
+      .addEventListener("click", resumeComplexDeployment);
   }
+
+  // Check for existing deployed addresses
+  checkDeployedAddresses();
 
   // Hide normal deployment controls
   if (deployBtn) deployBtn.style.display = "none";
@@ -1560,6 +1573,76 @@ function showComplexDeploymentUI() {
 
   // Show deployment steps
   renderDeploymentSteps();
+}
+
+// New function to check deployed addresses
+async function checkDeployedAddresses() {
+  try {
+    const projectName = document.getElementById("projectSelect").value;
+    const response = await fetch(`/api/projects/${projectName}/deployed-addresses.json`);
+    
+    if (response.ok) {
+      const deployedAddresses = await response.json();
+      window.deployedContracts = deployedAddresses;
+      
+      // Show deployed addresses UI
+      const deployedDiv = document.getElementById("deployedAddresses");
+      const deployedList = document.getElementById("deployedList");
+      
+      if (Object.keys(deployedAddresses).length > 0) {
+        deployedDiv.classList.remove("hidden");
+        deployedList.innerHTML = Object.entries(deployedAddresses)
+          .map(([name, address]) => `
+            <div class="flex justify-between">
+              <span class="font-mono">${name}:</span>
+              <span class="text-gray-600">${address.slice(0, 6)}...${address.slice(-4)}</span>
+            </div>
+          `).join("");
+        
+        // Show resume button
+        document.getElementById("resumeDeploy").classList.remove("hidden");
+        
+        // Update deployment steps to show completed contracts
+        updateDeploymentStepsWithDeployed(deployedAddresses);
+      }
+    }
+  } catch (error) {
+    console.log("No deployed addresses found");
+  }
+}
+
+// Function to update deployment steps with deployed contracts
+function updateDeploymentStepsWithDeployed(deployedAddresses) {
+  if (!deploymentConfig) return;
+  
+  // Find the first incomplete step
+  let firstIncompleteStep = -1;
+  
+  for (let i = 0; i < deploymentConfig.deploymentOrder.length; i++) {
+    const step = deploymentConfig.deploymentOrder[i];
+    const allDeployed = step.contracts.every(contract => 
+      deployedAddresses[contract.name]
+    );
+    
+    if (!allDeployed) {
+      firstIncompleteStep = i;
+      break;
+    }
+  }
+  
+  if (firstIncompleteStep >= 0) {
+    currentDeploymentStep = firstIncompleteStep;
+  }
+  
+  renderDeploymentSteps();
+}
+
+// Function to resume deployment
+async function resumeComplexDeployment() {
+  if (!deploymentConfig || !window.deployedContracts) return;
+  
+  // Start from the current incomplete step
+  startComplexDeployment();
 }
 
 function hideComplexDeploymentUI() {
@@ -1603,16 +1686,19 @@ function renderDeploymentSteps() {
                 <ul class="mt-2 text-sm text-gray-600">
                     ${step.contracts
                       .map(
-                        (c) => `
-                        <li class="ml-4">• ${c.name} ${
-                          deployedAddresses[c.name]
-                            ? `✅ (${deployedAddresses[c.name].substring(
+                        (c) => {
+                          const isDeployed = window.deployedContracts && window.deployedContracts[c.name];
+                          return `
+                        <li class="ml-4 ${isDeployed ? 'text-green-600' : ''}">• ${c.name} ${
+                          isDeployed
+                            ? `✅ (${window.deployedContracts[c.name].substring(
                                 0,
                                 8
                               )}...)`
                             : ""
                         }</li>
-                    `
+                    `;
+                        }
                       )
                       .join("")}
                 </ul>
@@ -1676,9 +1762,16 @@ async function startComplexDeployment() {
           `Deploying ${step.contracts.length} contracts in parallel...`,
           "info"
         );
-        const deployPromises = deployData.deploymentData.map((data) =>
-          deployContractWithData(data)
-        );
+        const deployPromises = deployData.deploymentData
+          .filter(data => !window.deployedContracts || !window.deployedContracts[data.contractName])
+          .map((data) => deployContractWithData(data));
+        
+        // Add already deployed contracts to results
+        deployData.deploymentData.forEach((data) => {
+          if (window.deployedContracts && window.deployedContracts[data.contractName]) {
+            deployedAddresses[data.contractName] = window.deployedContracts[data.contractName];
+          }
+        });
         const results = await Promise.all(deployPromises);
 
         // Store addresses
@@ -1689,9 +1782,14 @@ async function startComplexDeployment() {
       } else {
         // Deploy sequentially
         for (const data of deployData.deploymentData) {
-          showMessage(`Deploying ${data.contractName}...`, "info");
-          const address = await deployContractWithData(data);
-          deployedAddresses[data.contractName] = address;
+          if (window.deployedContracts && window.deployedContracts[data.contractName]) {
+            deployedAddresses[data.contractName] = window.deployedContracts[data.contractName];
+            showMessage(`${data.contractName} already deployed, using existing address`, "info");
+          } else {
+            showMessage(`Deploying ${data.contractName}...`, "info");
+            const address = await deployContractWithData(data);
+            deployedAddresses[data.contractName] = address;
+          }
 
           // Execute post-deployment functions if any
           if (data.postDeploy && data.postDeploy.length > 0) {
@@ -1711,6 +1809,9 @@ async function startComplexDeployment() {
     }
 
     showMessage("Complex deployment completed successfully!", "success");
+    
+    // Save deployed addresses
+    await saveDeployedAddresses();
 
     // Show deployment summary
     showDeploymentSummary();
@@ -1721,6 +1822,12 @@ async function startComplexDeployment() {
 }
 
 async function deployContractWithData(deployData) {
+  // Check if already deployed
+  if (window.deployedContracts && window.deployedContracts[deployData.contractName]) {
+    const existingAddress = window.deployedContracts[deployData.contractName];
+    showMessage(`${deployData.contractName} already deployed at ${existingAddress}, skipping...`, "info");
+    return existingAddress;
+  }
   const factory = new ethers.ContractFactory(
     deployData.abi,
     deployData.bytecode,
@@ -1792,6 +1899,23 @@ function resetDeployment() {
   deployedAddresses = {};
   renderDeploymentSteps();
   showMessage("Deployment reset", "info");
+}
+
+async function saveDeployedAddresses() {
+  try {
+    const projectName = document.getElementById("projectSelect").value;
+    const response = await fetch(`/api/projects/${projectName}/save-deployed-addresses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deployedAddresses)
+    });
+    
+    if (response.ok) {
+      showMessage("Deployed addresses saved to deployed-addresses.json", "success");
+    }
+  } catch (error) {
+    console.error("Failed to save deployed addresses:", error);
+  }
 }
 
 function showDeploymentSummary() {
