@@ -1149,13 +1149,63 @@ app.post('/api/projects/:projectName/deploy-step', async (req, res) => {
         
     } catch (error) {
         console.error('Deploy step error:', error);
-        console.error('Project:', projectName);
-        console.error('Step:', step);
+        console.error('Project:', req.params.projectName);
+        console.error('Step:', req.body.step);
         res.status(500).json({ 
             success: false, 
             error: error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
+    }
+});
+
+// Get deployed addresses
+app.get('/api/projects/:projectName/deployed-addresses.json', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        const addressesPath = path.join(projectPath, 'deployed-addresses.json');
+        
+        try {
+            const data = await fs.readFile(addressesPath, 'utf8');
+            res.json(JSON.parse(data));
+        } catch (error) {
+            // File doesn't exist - return empty object
+            res.json({});
+        }
+    } catch (error) {
+        console.error('Get deployed addresses error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Save deployed addresses
+app.post('/api/projects/:projectName/save-deployed-addresses', async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        const addresses = req.body;
+        
+        // Validate project name
+        if (!validateProjectName(projectName)) {
+            return res.status(400).json({ error: 'Invalid project name' });
+        }
+        
+        const projectPath = path.join(__dirname, '../projects', projectName);
+        const addressesPath = path.join(projectPath, 'deployed-addresses.json');
+        
+        // Save addresses
+        await fs.writeFile(addressesPath, JSON.stringify(addresses, null, 2));
+        
+        res.json({ success: true, message: 'Addresses saved successfully' });
+    } catch (error) {
+        console.error('Save deployed addresses error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 

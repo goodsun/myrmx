@@ -120,11 +120,24 @@ async function onProjectChange(event) {
     await loadContracts();
     await loadProjectStatus();
     document.getElementById("cleanProject").classList.remove("hidden");
+    
+    // Load deployed addresses for this project
+    await checkDeployedAddresses();
+    
+    // Update Interface Interaction section if visible
+    const interfaceSection = document.getElementById("interfaceInteractionSection");
+    if (interfaceSection && !interfaceSection.classList.contains("hidden")) {
+      showDeployedContractsQuickAccess();
+    }
   } else {
     document.getElementById("contractsContainer").innerHTML =
       '<p class="text-gray-500">Select a project first</p>';
     document.getElementById("cleanProject").classList.add("hidden");
     document.getElementById("projectStatus").classList.add("hidden");
+    
+    // Clear deployed addresses
+    deployedAddresses = {};
+    window.deployedContracts = {};
   }
 }
 
@@ -996,11 +1009,30 @@ function showGasEstimateDialog(gasInfo) {
 
 // Show contract interaction interface
 function showContractInteraction(contractName, address, abi) {
-  document.getElementById("interactContractName").textContent = contractName;
-  document.getElementById("interactContractAddress").textContent = address;
-
-  // Populate read and write functions
-  populateFunctions(abi);
+  // Redirect to Interface Interaction instead
+  showMessage("Redirecting to Interface Interaction...", "info");
+  
+  // Hide deployment section
+  document.getElementById("deploymentSection").classList.add("hidden");
+  
+  // Show Interface Interaction
+  const interfaceSection = document.getElementById("interfaceInteractionSection");
+  if (interfaceSection) {
+    interfaceSection.classList.remove("hidden");
+  }
+  
+  // Pre-fill the address
+  const addressInput = document.getElementById("interfaceContractAddress");
+  if (addressInput) {
+    addressInput.value = address;
+  }
+  
+  // Update deployed contracts list
+  showDeployedContractsQuickAccess();
+  updateCurrentNetworkInfo();
+  
+  showMessage(`Use Interface Interaction to interact with ${contractName}`, "success");
+  return;
 
   // Show interaction section
   document.getElementById("interactionSection").classList.remove("hidden");
@@ -1579,6 +1611,8 @@ function showComplexDeploymentUI() {
 async function checkDeployedAddresses() {
   try {
     const projectName = document.getElementById("projectSelect").value;
+    if (!projectName) return;
+    
     const response = await fetch(`/api/projects/${projectName}/deployed-addresses.json`);
     
     if (response.ok) {
@@ -1589,25 +1623,36 @@ async function checkDeployedAddresses() {
       const deployedDiv = document.getElementById("deployedAddresses");
       const deployedList = document.getElementById("deployedList");
       
-      if (Object.keys(deployedAddresses).length > 0) {
+      if (deployedDiv && deployedList && Object.keys(deployedAddresses).length > 0) {
         deployedDiv.classList.remove("hidden");
         deployedList.innerHTML = Object.entries(deployedAddresses)
           .map(([name, address]) => `
-            <div class="flex justify-between">
+            <div class="flex justify-between items-center">
               <span class="font-mono">${name}:</span>
-              <span class="text-gray-600">${address.slice(0, 6)}...${address.slice(-4)}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-gray-600">${address.slice(0, 6)}...${address.slice(-4)}</span>
+                <button onclick="copyAddress('${address}')" class="text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
+              </div>
             </div>
           `).join("");
         
-        // Show resume button
-        document.getElementById("resumeDeploy").classList.remove("hidden");
+        // Show resume button if it exists
+        const resumeBtn = document.getElementById("resumeDeploy");
+        if (resumeBtn) {
+          resumeBtn.classList.remove("hidden");
+        }
         
         // Update deployment steps to show completed contracts
         updateDeploymentStepsWithDeployed(deployedAddresses);
       }
+    } else if (response.status === 404) {
+      // No deployed addresses yet - this is normal for new projects
+      window.deployedContracts = {};
     }
   } catch (error) {
-    console.log("No deployed addresses found");
+    // Network error or other issues - fail silently
+    console.debug("Could not load deployed addresses:", error.message);
+    window.deployedContracts = {};
   }
 }
 
@@ -1841,6 +1886,22 @@ async function startFromStep(stepIndex) {
     return;
   }
   
+  // Merge window.deployedContracts into deployedAddresses
+  if (window.deployedContracts) {
+    Object.assign(deployedAddresses, window.deployedContracts);
+  }
+  
+  // Ensure we have all addresses from previous steps
+  for (let i = 0; i < stepIndex; i++) {
+    const step = deploymentConfig.deploymentOrder[i];
+    for (const contract of step.contracts) {
+      if (!deployedAddresses[contract.name]) {
+        showMessage(`Missing required contract ${contract.name} from step ${step.step}. Please deploy previous steps first.`, "error");
+        return;
+      }
+    }
+  }
+  
   currentDeploymentStep = stepIndex;
   renderDeploymentSteps();
   
@@ -1902,9 +1963,21 @@ async function startComplexDeployment() {
           `Deploying ${step.contracts.length} contracts in parallel...`,
           "info"
         );
-        const deployPromises = deployData.deploymentData
-          .filter(data => !window.deployedContracts || !window.deployedContracts[data.contractName])
-          .map((data) => deployContractWithData(data));
+        // Filter out already deployed contracts
+        const contractsToDeploy = deployData.deploymentData
+          .filter(data => !window.deployedContracts || !window.deployedContracts[data.contractName]);
+        
+        // Deploy contracts in parallel but handle results individually
+        const deployPromises = contractsToDeploy.map(async (data) => {
+          try {
+            const address = await deployContractWithData(data);
+            // Address is already saved in deployContractWithData
+            return { success: true, contractName: data.contractName, address };
+          } catch (error) {
+            console.error(`Failed to deploy ${data.contractName}:`, error);
+            return { success: false, contractName: data.contractName, error: error.message };
+          }
+        });
         
         // Add already deployed contracts to results
         deployData.deploymentData.forEach((data) => {
@@ -1912,15 +1985,15 @@ async function startComplexDeployment() {
             deployedAddresses[data.contractName] = window.deployedContracts[data.contractName];
           }
         });
+        // Wait for all deployments to complete
         const results = await Promise.all(deployPromises);
-
-        // Store addresses and update UI immediately
-        results.forEach((address, index) => {
-          const contractName = deployData.deploymentData[index].contractName;
-          deployedAddresses[contractName] = address;
-          // Update UI immediately after each deployment
-          updateContractAddressInUI(contractName, address);
-        });
+        
+        // Check if any deployments failed
+        const failedDeployments = results.filter(r => !r.success);
+        if (failedDeployments.length > 0) {
+          const failedNames = failedDeployments.map(f => f.contractName).join(', ');
+          throw new Error(`Failed to deploy: ${failedNames}`);
+        }
       } else {
         // Deploy sequentially
         for (const data of deployData.deploymentData) {
@@ -2026,6 +2099,9 @@ async function deployContractWithData(deployData) {
   updateContractAddressInUI(deployData.contractName, contract.address);
   showMessage(`${deployData.contractName} deployed successfully at ${contract.address}`, "success");
   
+  // Save deployed address immediately
+  await saveDeployedAddressIncremental(deployData.contractName, contract.address);
+  
   return contract.address;
 }
 
@@ -2071,6 +2147,33 @@ async function saveDeployedAddresses() {
   }
 }
 
+// Save single deployed address immediately
+async function saveDeployedAddressIncremental(contractName, address) {
+  try {
+    const projectName = document.getElementById("projectSelect").value;
+    
+    // Update local deployed addresses
+    deployedAddresses[contractName] = address;
+    if (!window.deployedContracts) {
+      window.deployedContracts = {};
+    }
+    window.deployedContracts[contractName] = address;
+    
+    // Save to server
+    const response = await fetch(`/api/projects/${projectName}/save-deployed-addresses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deployedAddresses)
+    });
+    
+    if (!response.ok) {
+      console.error("Failed to save deployed address incrementally");
+    }
+  } catch (error) {
+    console.error("Failed to save deployed address:", error);
+  }
+}
+
 function showDeploymentSummary() {
   // Create a nice summary UI instead of alert
   const summaryDiv = document.createElement("div");
@@ -2105,15 +2208,9 @@ function showDeploymentSummary() {
             <button id="copyAllAddresses" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
                 📋 Copy All Addresses
             </button>
-            ${
-              deployedAddresses.BankedNFT
-                ? `
-            <button id="interactWithNFT" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-                🎮 Interact with NFT Contract
+            <button id="openInterfaceInteraction" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                🔧 Use Interface Interaction
             </button>
-            `
-                : ""
-            }
         </div>
     `;
 
@@ -2127,9 +2224,37 @@ function showDeploymentSummary() {
   }
 
   // Add event listeners
-  document
-    .getElementById("downloadDeploymentData")
-    .addEventListener("click", () => {
+  setTimeout(() => {
+    // Open Interface Interaction button
+    const openInterfaceBtn = document.getElementById("openInterfaceInteraction");
+    if (openInterfaceBtn) {
+      openInterfaceBtn.addEventListener("click", () => {
+        // Hide deployment UI
+        hideComplexDeploymentUI();
+        
+        // Show interface interaction section
+        const interfaceSection = document.getElementById("interfaceInteractionSection");
+        if (interfaceSection) {
+          interfaceSection.classList.remove("hidden");
+        }
+        
+        // Hide normal interaction section
+        const interactionSection = document.getElementById("interactionSection");
+        if (interactionSection) {
+          interactionSection.classList.add("hidden");
+        }
+        
+        // Update deployed contracts list
+        showDeployedContractsQuickAccess();
+        updateCurrentNetworkInfo();
+        
+        showMessage("Use Interface Interaction to interact with your deployed contracts", "info");
+      });
+    }
+    
+    const downloadBtn = document.getElementById("downloadDeploymentData");
+    if (downloadBtn) {
+      downloadBtn.addEventListener("click", () => {
       // Convert network ID to name
       const networkId = window.ethereum?.networkVersion || "1337";
       let networkName = "unknown";
@@ -2172,54 +2297,24 @@ function showDeploymentSummary() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    });
+      });
+    }
 
-  document.getElementById("copyAllAddresses").addEventListener("click", () => {
+    const copyAllBtn = document.getElementById("copyAllAddresses");
+    if (copyAllBtn) {
+      copyAllBtn.addEventListener("click", () => {
     const addressesText = Object.entries(deployedAddresses)
       .map(([name, address]) => `${name}: ${address}`)
       .join("\n");
 
-    navigator.clipboard.writeText(addressesText).then(() => {
-      showMessage("All addresses copied to clipboard!", "success");
-    });
-  });
-
-  // Add interaction button listener if BankedNFT exists
-  if (deployedAddresses.BankedNFT) {
-    const interactBtn = document.getElementById("interactWithNFT");
-    if (interactBtn) {
-      interactBtn.addEventListener("click", async () => {
-        // Get the BankedNFT contract data
-        try {
-          const response = await fetch(
-            `/api/projects/${selectedProject}/contracts`
-          );
-          const data = await response.json();
-
-          // Find BankedNFT contract
-          const bankedNFTContract = data.contracts["BankedNFT"];
-          if (bankedNFTContract) {
-            // Show interaction UI
-            showContractInteraction(
-              "BankedNFT",
-              deployedAddresses.BankedNFT,
-              bankedNFTContract.abi
-            );
-
-            // Scroll to interaction section
-            const interactionSection = document.getElementById("interactionSection");
-            if (interactionSection) {
-              interactionSection.scrollIntoView({ behavior: "smooth" });
-            }
-          } else {
-            showMessage("Could not find BankedNFT ABI", "error");
-          }
-        } catch (error) {
-          showMessage("Failed to load contract ABI: " + error.message, "error");
-        }
+        navigator.clipboard.writeText(addressesText).then(() => {
+          showMessage("All addresses copied to clipboard!", "success");
+        });
       });
     }
-  }
+  }, 100); // Delay to ensure DOM is ready
+
+  // Remove old NFT interaction code - use Interface Interaction instead
 
   // Also log to console for debugging
   console.log("Deployment Summary:", deployedAddresses);
@@ -2418,6 +2513,9 @@ document.getElementById("interfaceInteraction").addEventListener("click", () => 
   
   // Update current network info
   updateCurrentNetworkInfo();
+  
+  // Show deployed contracts if available
+  showDeployedContractsQuickAccess();
 });
 
 // Update current network info display
@@ -2873,3 +2971,80 @@ window.copyAddress = copyAddress;
 window.toggleStepArgs = toggleStepArgs;
 window.updateStepArgs = updateStepArgs;
 window.startFromStep = startFromStep;
+
+// Function to show deployed contracts in Interface Interaction
+function showDeployedContractsQuickAccess() {
+  const quickAccessDiv = document.getElementById("deployedContractsQuickAccess");
+  const contractsList = document.getElementById("deployedContractsList");
+  
+  if (!quickAccessDiv || !contractsList) return;
+  
+  // Combine deployedAddresses and window.deployedContracts
+  const allDeployedContracts = { ...deployedAddresses };
+  if (window.deployedContracts) {
+    Object.assign(allDeployedContracts, window.deployedContracts);
+  }
+  
+  if (Object.keys(allDeployedContracts).length > 0) {
+    quickAccessDiv.classList.remove("hidden");
+    contractsList.innerHTML = Object.entries(allDeployedContracts)
+      .map(([name, address]) => `
+        <div class="flex justify-between items-center p-1 hover:bg-blue-100 rounded">
+          <span class="font-mono font-semibold">${name}:</span>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-600">${address.slice(0, 6)}...${address.slice(-4)}</span>
+            <button onclick="copyAddress('${address}')" class="text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
+            <button onclick="useAddressInInterface('${address}', '${name}')" class="text-green-500 hover:text-green-700" title="Use in interface">➡️</button>
+          </div>
+        </div>
+      `).join("");
+  } else {
+    quickAccessDiv.classList.add("hidden");
+  }
+}
+
+// Function to use address in interface
+function useAddressInInterface(address, contractName) {
+  const addressInput = document.getElementById("interfaceContractAddress");
+  const contractSelect = document.getElementById("interfaceContractSelect");
+  
+  if (addressInput) {
+    addressInput.value = address;
+  }
+  
+  if (contractSelect && contractName) {
+    // Try to find and select the matching contract
+    const options = Array.from(contractSelect.options);
+    const matchingOption = options.find(option => {
+      // Check if the option value or text contains the contract name
+      return option.value.includes(contractName) || option.text.includes(contractName);
+    });
+    
+    if (matchingOption) {
+      contractSelect.value = matchingOption.value;
+      showMessage(`Selected ${contractName} and copied address`, "success");
+    } else {
+      // If no exact match, try to find a suitable interface
+      const interfaceOption = options.find(option => {
+        // Common patterns for interface selection
+        if (contractName.includes("NFT") && option.text.includes("NFT")) return true;
+        if (contractName.includes("Token") && option.text.includes("Token")) return true;
+        if (contractName.includes("Bank") && option.text.includes("Bank")) return true;
+        return false;
+      });
+      
+      if (interfaceOption) {
+        contractSelect.value = interfaceOption.value;
+        showMessage(`Selected ${interfaceOption.text} interface for ${contractName}`, "info");
+      } else {
+        showMessage("Address copied. Please select the appropriate interface manually.", "info");
+      }
+    }
+  } else {
+    showMessage("Address copied to input field", "success");
+  }
+}
+
+window.showDeployedContractsQuickAccess = showDeployedContractsQuickAccess;
+window.useAddressInInterface = useAddressInInterface;
+window.saveDeployedAddressIncremental = saveDeployedAddressIncremental;
