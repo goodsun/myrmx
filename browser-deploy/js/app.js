@@ -38,6 +38,103 @@ document.addEventListener("DOMContentLoaded", async () => {
     .getElementById("createProject")
     .addEventListener("click", createNewProject);
 
+  // Tab switching functionality
+  const deployCompileTab = document.getElementById("deployCompileTab");
+  const interfaceInteractionTab = document.getElementById(
+    "interfaceInteractionTab"
+  );
+  const compileDeploySection = document.getElementById("compileDeploySection");
+  const interfaceInteractionContent = document.getElementById(
+    "interfaceInteractionContent"
+  );
+  const oldInterfaceSection = document.getElementById(
+    "interfaceInteractionSection"
+  );
+  const mainTabContainer = document.getElementById("mainTabContainer");
+
+  // Move Interface Interaction content to tab container
+  if (oldInterfaceSection && interfaceInteractionContent) {
+    // Clone the content without the outer wrapper
+    interfaceInteractionContent.innerHTML = oldInterfaceSection.innerHTML;
+    // Remove the old section
+    oldInterfaceSection.remove();
+
+    // Re-initialize event listeners for interface interaction after moving content
+    initializeInterfaceInteractionListeners();
+  }
+
+  // Hide tab container initially if no project selected
+  if (!selectedProject) {
+    mainTabContainer.classList.add("hidden");
+  }
+
+  // Deploy & Compile Tab
+  deployCompileTab.addEventListener("click", () => {
+    // Update tab styles
+    deployCompileTab.classList.add(
+      "text-blue-600",
+      "border-b-2",
+      "border-blue-600",
+      "bg-gray-50"
+    );
+    deployCompileTab.classList.remove("text-gray-600");
+    interfaceInteractionTab.classList.remove(
+      "text-blue-600",
+      "border-b-2",
+      "border-blue-600",
+      "bg-gray-50"
+    );
+    interfaceInteractionTab.classList.add("text-gray-600");
+
+    // Show/hide content
+    compileDeploySection.classList.remove("hidden");
+    interfaceInteractionContent.classList.add("hidden");
+
+    // Show deployment section if it exists
+    const deploymentSection = document.getElementById("deploymentSection");
+    if (deploymentSection) {
+      deploymentSection.classList.remove("hidden");
+    }
+  });
+
+  // Interface Interaction Tab
+  interfaceInteractionTab.addEventListener("click", () => {
+    // Update tab styles
+    interfaceInteractionTab.classList.add(
+      "text-blue-600",
+      "border-b-2",
+      "border-blue-600",
+      "bg-gray-50"
+    );
+    interfaceInteractionTab.classList.remove("text-gray-600");
+    deployCompileTab.classList.remove(
+      "text-blue-600",
+      "border-b-2",
+      "border-blue-600",
+      "bg-gray-50"
+    );
+    deployCompileTab.classList.add("text-gray-600");
+
+    // Show/hide content
+    interfaceInteractionContent.classList.remove("hidden");
+    compileDeploySection.classList.add("hidden");
+
+    // Hide deployment section
+    const deploymentSection = document.getElementById("deploymentSection");
+    if (deploymentSection) {
+      deploymentSection.classList.add("hidden");
+    }
+
+    // Update interface data
+    updateCurrentNetworkInfo();
+    showDeployedContractsQuickAccess();
+
+    // Load interfaces if not already loaded
+    if (selectedProject) {
+      loadInterfaces();
+    }
+  });
+
   // Shared contracts event listeners
   document
     .getElementById("manageSharedBtn")
@@ -120,12 +217,17 @@ async function onProjectChange(event) {
     await loadContracts();
     await loadProjectStatus();
     document.getElementById("cleanProject").classList.remove("hidden");
-    
+
+    // Show main tab container
+    document.getElementById("mainTabContainer").classList.remove("hidden");
+
     // Load deployed addresses for this project
     await checkDeployedAddresses();
-    
+
     // Update Interface Interaction section if visible
-    const interfaceSection = document.getElementById("interfaceInteractionSection");
+    const interfaceSection = document.getElementById(
+      "interfaceInteractionSection"
+    );
     if (interfaceSection && !interfaceSection.classList.contains("hidden")) {
       showDeployedContractsQuickAccess();
     }
@@ -134,7 +236,10 @@ async function onProjectChange(event) {
       '<p class="text-gray-500">Select a project first</p>';
     document.getElementById("cleanProject").classList.add("hidden");
     document.getElementById("projectStatus").classList.add("hidden");
-    
+
+    // Hide main tab container
+    document.getElementById("mainTabContainer").classList.add("hidden");
+
     // Clear deployed addresses
     deployedAddresses = {};
     window.deployedContracts = {};
@@ -435,8 +540,8 @@ async function connectWallet() {
     if (networkInfo.warning) {
       const warningDiv = document.createElement("div");
       warningDiv.className =
-        "mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600";
-      warningDiv.innerHTML = `⚠️ Warning: You are connected to ${networkInfo.name}. Real ${networkInfo.symbol} will be used!`;
+        "mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600 text-left";
+      warningDiv.innerHTML = ` <b>⚠️ Warning</b> <br />You are connected to ${networkInfo.name}. <br />Real ${networkInfo.symbol} will be used!`;
       document.getElementById("accountInfo").appendChild(warningDiv);
     }
 
@@ -727,19 +832,19 @@ async function deployContract() {
 
     // Deploy with gas limit
     showMessage("Deploying contract...", "info");
-    
+
     // Get current network
     const network = await provider.getNetwork();
     let deployOptions = {
       gasLimit: gasEstimate.mul(150).div(100), // 50% buffer
     };
-    
+
     // For Amoy, double the gas price
     if (network.chainId === 80002) {
       const gasPrice = await provider.getGasPrice();
       deployOptions.gasPrice = gasPrice.mul(2);
     }
-    
+
     const deployTx = await factory.deploy(...constructorParams, deployOptions);
     showMessage("Transaction sent. Waiting for confirmation...", "info");
 
@@ -1011,27 +1116,32 @@ function showGasEstimateDialog(gasInfo) {
 function showContractInteraction(contractName, address, abi) {
   // Redirect to Interface Interaction instead
   showMessage("Redirecting to Interface Interaction...", "info");
-  
+
   // Hide deployment section
   document.getElementById("deploymentSection").classList.add("hidden");
-  
+
   // Show Interface Interaction
-  const interfaceSection = document.getElementById("interfaceInteractionSection");
+  const interfaceSection = document.getElementById(
+    "interfaceInteractionSection"
+  );
   if (interfaceSection) {
     interfaceSection.classList.remove("hidden");
   }
-  
+
   // Pre-fill the address
   const addressInput = document.getElementById("interfaceContractAddress");
   if (addressInput) {
     addressInput.value = address;
   }
-  
+
   // Update deployed contracts list
   showDeployedContractsQuickAccess();
   updateCurrentNetworkInfo();
-  
-  showMessage(`Use Interface Interaction to interact with ${contractName}`, "success");
+
+  showMessage(
+    `Use Interface Interaction to interact with ${contractName}`,
+    "success"
+  );
   return;
 
   // Show interaction section
@@ -1213,10 +1323,10 @@ async function executeFunction(funcIndex, isReadFunction) {
     }
   } catch (error) {
     console.error("Function call error:", error);
-    
+
     // Extract detailed error message
     let errorMessage = error.message;
-    
+
     // Extract revert reason from various error formats
     if (error.reason) {
       errorMessage = error.reason;
@@ -1224,24 +1334,24 @@ async function executeFunction(funcIndex, isReadFunction) {
       errorMessage = error.data.message;
     } else if (error.error && error.error.data && error.error.data.message) {
       errorMessage = error.error.data.message;
-    } else if (error.message && error.message.includes('execution reverted:')) {
+    } else if (error.message && error.message.includes("execution reverted:")) {
       // Extract revert reason from error message
       const match = error.message.match(/execution reverted: (.+)/);
       if (match) {
         errorMessage = match[1];
       }
     }
-    
+
     // Handle specific error codes
-    if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
+    if (error.code === "UNPREDICTABLE_GAS_LIMIT") {
       // Check if there's a revert reason
       if (error.reason || (error.error && error.error.message)) {
         errorMessage = error.reason || error.error.message;
       }
-    } else if (error.code === 'ACTION_REJECTED') {
-      errorMessage = 'Transaction was rejected by the user.';
+    } else if (error.code === "ACTION_REJECTED") {
+      errorMessage = "Transaction was rejected by the user.";
     }
-    
+
     // Display detailed error in result div
     const resultDiv = document.getElementById(`func-${funcIndex}-result`);
     if (resultDiv) {
@@ -1253,7 +1363,7 @@ async function executeFunction(funcIndex, isReadFunction) {
       `;
       resultDiv.classList.remove("hidden");
     }
-    
+
     showMessage(`Function call failed: ${errorMessage}`, "error");
   }
 }
@@ -1612,36 +1722,48 @@ async function checkDeployedAddresses() {
   try {
     const projectName = document.getElementById("projectSelect").value;
     if (!projectName) return;
-    
-    const response = await fetch(`/api/projects/${projectName}/deployed-addresses.json`);
-    
+
+    const response = await fetch(
+      `/api/projects/${projectName}/deployed-addresses.json`
+    );
+
     if (response.ok) {
       const deployedAddresses = await response.json();
       window.deployedContracts = deployedAddresses;
-      
+
       // Show deployed addresses UI
       const deployedDiv = document.getElementById("deployedAddresses");
       const deployedList = document.getElementById("deployedList");
-      
-      if (deployedDiv && deployedList && Object.keys(deployedAddresses).length > 0) {
+
+      if (
+        deployedDiv &&
+        deployedList &&
+        Object.keys(deployedAddresses).length > 0
+      ) {
         deployedDiv.classList.remove("hidden");
         deployedList.innerHTML = Object.entries(deployedAddresses)
-          .map(([name, address]) => `
+          .map(
+            ([name, address]) => `
             <div class="flex justify-between items-center">
               <span class="font-mono">${name}:</span>
               <div class="flex items-center gap-2">
-                <span class="text-gray-600">${address.slice(0, 6)}...${address.slice(-4)}</span>
+                <span class="text-gray-600">${address.slice(
+                  0,
+                  6
+                )}...${address.slice(-4)}</span>
                 <button onclick="copyAddress('${address}')" class="text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
               </div>
             </div>
-          `).join("");
-        
+          `
+          )
+          .join("");
+
         // Show resume button if it exists
         const resumeBtn = document.getElementById("resumeDeploy");
         if (resumeBtn) {
           resumeBtn.classList.remove("hidden");
         }
-        
+
         // Update deployment steps to show completed contracts
         updateDeploymentStepsWithDeployed(deployedAddresses);
       }
@@ -1659,33 +1781,33 @@ async function checkDeployedAddresses() {
 // Function to update deployment steps with deployed contracts
 function updateDeploymentStepsWithDeployed(deployedAddresses) {
   if (!deploymentConfig) return;
-  
+
   // Find the first incomplete step
   let firstIncompleteStep = -1;
-  
+
   for (let i = 0; i < deploymentConfig.deploymentOrder.length; i++) {
     const step = deploymentConfig.deploymentOrder[i];
-    const allDeployed = step.contracts.every(contract => 
-      deployedAddresses[contract.name]
+    const allDeployed = step.contracts.every(
+      (contract) => deployedAddresses[contract.name]
     );
-    
+
     if (!allDeployed) {
       firstIncompleteStep = i;
       break;
     }
   }
-  
+
   if (firstIncompleteStep >= 0) {
     currentDeploymentStep = firstIncompleteStep;
   }
-  
+
   renderDeploymentSteps();
 }
 
 // Function to resume deployment
 async function resumeComplexDeployment() {
   if (!deploymentConfig || !window.deployedContracts) return;
-  
+
   // Start from the current incomplete step
   startComplexDeployment();
 }
@@ -1713,7 +1835,9 @@ function renderDeploymentSteps() {
       const isCompleted = index < currentDeploymentStep;
       const isActive = index === currentDeploymentStep;
       const statusIcon = isCompleted ? "✅" : isActive ? "🔄" : "⏳";
-      const stepHasArgs = step.contracts.some(c => c.constructorArgs && c.constructorArgs.length > 0);
+      const stepHasArgs = step.contracts.some(
+        (c) => c.constructorArgs && c.constructorArgs.length > 0
+      );
 
       return `
             <div class="p-3 border rounded ${
@@ -1743,23 +1867,31 @@ function renderDeploymentSteps() {
                 </div>
                 <ul class="mt-2 text-sm text-gray-600">
                     ${step.contracts
-                      .map(
-                        (c) => {
-                          const address = deployedAddresses[c.name] || (window.deployedContracts && window.deployedContracts[c.name]);
-                          const isDeployed = !!address;
-                          return `
-                        <li class="ml-4 ${isDeployed ? 'text-green-600' : ''}" id="contract-${c.name}">
+                      .map((c) => {
+                        const address =
+                          deployedAddresses[c.name] ||
+                          (window.deployedContracts &&
+                            window.deployedContracts[c.name]);
+                        const isDeployed = !!address;
+                        return `
+                        <li class="ml-4 ${
+                          isDeployed ? "text-green-600" : ""
+                        }" id="contract-${c.name}">
                           <span class="font-medium">• ${c.name}</span>
                           ${
                             address
-                              ? `<span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+                              ? `<span class="ml-2 font-mono text-xs">✅ ${address.substring(
+                                  0,
+                                  6
+                                )}...${address.substring(
+                                  address.length - 4
+                                )}</span>
                                  <button onclick="copyAddress('${address}')" class="ml-1 text-blue-500 hover:text-blue-700" title="Copy address">📋</button>`
                               : `<span class="ml-2 text-gray-400 text-xs">pending</span>`
                           }
                         </li>
                     `;
-                        }
-                      )
+                      })
                       .join("")}
                 </ul>
                 <div id="step-args-${index}" class="mt-3 p-3 bg-gray-50 rounded hidden">
@@ -1776,10 +1908,13 @@ function renderDeploymentSteps() {
 function updateContractAddressInUI(contractName, address) {
   const contractElement = document.getElementById(`contract-${contractName}`);
   if (contractElement) {
-    contractElement.classList.add('text-green-600');
+    contractElement.classList.add("text-green-600");
     contractElement.innerHTML = `
       <span class="font-medium">• ${contractName}</span>
-      <span class="ml-2 font-mono text-xs">✅ ${address.substring(0, 6)}...${address.substring(address.length - 4)}</span>
+      <span class="ml-2 font-mono text-xs">✅ ${address.substring(
+        0,
+        6
+      )}...${address.substring(address.length - 4)}</span>
       <button onclick="copyAddress('${address}')" class="ml-1 text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
     `;
   }
@@ -1787,26 +1922,29 @@ function updateContractAddressInUI(contractName, address) {
 
 // Function to copy address to clipboard
 function copyAddress(address) {
-  navigator.clipboard.writeText(address).then(() => {
-    showMessage(`Address ${address} copied to clipboard!`, "success");
-  }).catch(err => {
-    console.error('Failed to copy address:', err);
-    showMessage("Failed to copy address", "error");
-  });
+  navigator.clipboard
+    .writeText(address)
+    .then(() => {
+      showMessage(`Address ${address} copied to clipboard!`, "success");
+    })
+    .catch((err) => {
+      console.error("Failed to copy address:", err);
+      showMessage("Failed to copy address", "error");
+    });
 }
 
 // Function to toggle step arguments form
 function toggleStepArgs(stepIndex) {
   const argsDiv = document.getElementById(`step-args-${stepIndex}`);
   if (argsDiv) {
-    argsDiv.classList.toggle('hidden');
+    argsDiv.classList.toggle("hidden");
   }
 }
 
 // Function to render step arguments form
 function renderStepArgsForm(step, stepIndex) {
   let formHtml = '<div class="space-y-2">';
-  
+
   step.contracts.forEach((contract, contractIndex) => {
     if (contract.constructorArgs && contract.constructorArgs.length > 0) {
       formHtml += `
@@ -1814,44 +1952,46 @@ function renderStepArgsForm(step, stepIndex) {
           <h6 class="text-xs font-semibold text-gray-700">${contract.name}:</h6>
           <div class="space-y-1 mt-1">
       `;
-      
+
       contract.constructorArgs.forEach((arg, argIndex) => {
         const inputId = `arg-${stepIndex}-${contractIndex}-${argIndex}`;
-        const defaultValue = typeof arg === 'object' && arg.ref ? arg.ref : arg;
+        const defaultValue = typeof arg === "object" && arg.ref ? arg.ref : arg;
         formHtml += `
           <div class="flex items-center space-x-2">
-            <label class="text-xs text-gray-600 w-24" for="${inputId}">Arg ${argIndex + 1}:</label>
-            <input 
-              id="${inputId}" 
-              type="text" 
-              value="${defaultValue}" 
+            <label class="text-xs text-gray-600 w-24" for="${inputId}">Arg ${
+          argIndex + 1
+        }:</label>
+            <input
+              id="${inputId}"
+              type="text"
+              value="${defaultValue}"
               class="flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:border-blue-500"
               placeholder="Enter value or reference"
             />
           </div>
         `;
       });
-      
-      formHtml += '</div></div>';
+
+      formHtml += "</div></div>";
     }
   });
-  
+
   formHtml += `
-    <button 
-      onclick="updateStepArgs(${stepIndex})" 
+    <button
+      onclick="updateStepArgs(${stepIndex})"
       class="mt-2 bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600"
     >
       Update Arguments
     </button>
   </div>`;
-  
+
   return formHtml;
 }
 
 // Function to update step arguments
 function updateStepArgs(stepIndex) {
   const step = deploymentConfig.deploymentOrder[stepIndex];
-  
+
   step.contracts.forEach((contract, contractIndex) => {
     if (contract.constructorArgs && contract.constructorArgs.length > 0) {
       contract.constructorArgs.forEach((arg, argIndex) => {
@@ -1860,12 +2000,14 @@ function updateStepArgs(stepIndex) {
         if (input) {
           const value = input.value;
           // Check if it's a reference
-          if (value.includes('.address')) {
+          if (value.includes(".address")) {
             contract.constructorArgs[argIndex] = { ref: value };
           } else {
             // Try to parse as number if it looks like one
-            if (!isNaN(value) && value !== '') {
-              contract.constructorArgs[argIndex] = value.includes('.') ? parseFloat(value) : parseInt(value);
+            if (!isNaN(value) && value !== "") {
+              contract.constructorArgs[argIndex] = value.includes(".")
+                ? parseFloat(value)
+                : parseInt(value);
             } else {
               contract.constructorArgs[argIndex] = value;
             }
@@ -1874,7 +2016,7 @@ function updateStepArgs(stepIndex) {
       });
     }
   });
-  
+
   showMessage(`Arguments updated for step ${step.step}`, "success");
   toggleStepArgs(stepIndex);
 }
@@ -1882,29 +2024,35 @@ function updateStepArgs(stepIndex) {
 // Function to start deployment from specific step
 async function startFromStep(stepIndex) {
   if (!deploymentConfig || !signer) {
-    showMessage("Cannot start deployment: missing configuration or wallet", "error");
+    showMessage(
+      "Cannot start deployment: missing configuration or wallet",
+      "error"
+    );
     return;
   }
-  
+
   // Merge window.deployedContracts into deployedAddresses
   if (window.deployedContracts) {
     Object.assign(deployedAddresses, window.deployedContracts);
   }
-  
+
   // Ensure we have all addresses from previous steps
   for (let i = 0; i < stepIndex; i++) {
     const step = deploymentConfig.deploymentOrder[i];
     for (const contract of step.contracts) {
       if (!deployedAddresses[contract.name]) {
-        showMessage(`Missing required contract ${contract.name} from step ${step.step}. Please deploy previous steps first.`, "error");
+        showMessage(
+          `Missing required contract ${contract.name} from step ${step.step}. Please deploy previous steps first.`,
+          "error"
+        );
         return;
       }
     }
   }
-  
+
   currentDeploymentStep = stepIndex;
   renderDeploymentSteps();
-  
+
   // Continue with normal deployment flow from this step
   startComplexDeployment();
 }
@@ -1964,9 +2112,12 @@ async function startComplexDeployment() {
           "info"
         );
         // Filter out already deployed contracts
-        const contractsToDeploy = deployData.deploymentData
-          .filter(data => !window.deployedContracts || !window.deployedContracts[data.contractName]);
-        
+        const contractsToDeploy = deployData.deploymentData.filter(
+          (data) =>
+            !window.deployedContracts ||
+            !window.deployedContracts[data.contractName]
+        );
+
         // Deploy contracts in parallel but handle results individually
         const deployPromises = contractsToDeploy.map(async (data) => {
           try {
@@ -1975,31 +2126,48 @@ async function startComplexDeployment() {
             return { success: true, contractName: data.contractName, address };
           } catch (error) {
             console.error(`Failed to deploy ${data.contractName}:`, error);
-            return { success: false, contractName: data.contractName, error: error.message };
+            return {
+              success: false,
+              contractName: data.contractName,
+              error: error.message,
+            };
           }
         });
-        
+
         // Add already deployed contracts to results
         deployData.deploymentData.forEach((data) => {
-          if (window.deployedContracts && window.deployedContracts[data.contractName]) {
-            deployedAddresses[data.contractName] = window.deployedContracts[data.contractName];
+          if (
+            window.deployedContracts &&
+            window.deployedContracts[data.contractName]
+          ) {
+            deployedAddresses[data.contractName] =
+              window.deployedContracts[data.contractName];
           }
         });
         // Wait for all deployments to complete
         const results = await Promise.all(deployPromises);
-        
+
         // Check if any deployments failed
-        const failedDeployments = results.filter(r => !r.success);
+        const failedDeployments = results.filter((r) => !r.success);
         if (failedDeployments.length > 0) {
-          const failedNames = failedDeployments.map(f => f.contractName).join(', ');
+          const failedNames = failedDeployments
+            .map((f) => f.contractName)
+            .join(", ");
           throw new Error(`Failed to deploy: ${failedNames}`);
         }
       } else {
         // Deploy sequentially
         for (const data of deployData.deploymentData) {
-          if (window.deployedContracts && window.deployedContracts[data.contractName]) {
-            deployedAddresses[data.contractName] = window.deployedContracts[data.contractName];
-            showMessage(`${data.contractName} already deployed, using existing address`, "info");
+          if (
+            window.deployedContracts &&
+            window.deployedContracts[data.contractName]
+          ) {
+            deployedAddresses[data.contractName] =
+              window.deployedContracts[data.contractName];
+            showMessage(
+              `${data.contractName} already deployed, using existing address`,
+              "info"
+            );
           } else {
             showMessage(`Deploying ${data.contractName}...`, "info");
             const address = await deployContractWithData(data);
@@ -2015,7 +2183,11 @@ async function startComplexDeployment() {
                 `Executing ${postDeploy.method} on ${data.contractName}...`,
                 "info"
               );
-              await executePostDeploy(deployedAddresses[data.contractName], data.abi, postDeploy);
+              await executePostDeploy(
+                deployedAddresses[data.contractName],
+                data.abi,
+                postDeploy
+              );
             }
           }
         }
@@ -2026,7 +2198,7 @@ async function startComplexDeployment() {
     }
 
     showMessage("Complex deployment completed successfully!", "success");
-    
+
     // Save deployed addresses
     await saveDeployedAddresses();
 
@@ -2040,9 +2212,15 @@ async function startComplexDeployment() {
 
 async function deployContractWithData(deployData) {
   // Check if already deployed
-  if (window.deployedContracts && window.deployedContracts[deployData.contractName]) {
+  if (
+    window.deployedContracts &&
+    window.deployedContracts[deployData.contractName]
+  ) {
     const existingAddress = window.deployedContracts[deployData.contractName];
-    showMessage(`${deployData.contractName} already deployed at ${existingAddress}, skipping...`, "info");
+    showMessage(
+      `${deployData.contractName} already deployed at ${existingAddress}, skipping...`,
+      "info"
+    );
     return existingAddress;
   }
   const factory = new ethers.ContractFactory(
@@ -2055,22 +2233,29 @@ async function deployContractWithData(deployData) {
     `Deploying ${deployData.contractName} with args:`,
     deployData.constructorArgs
   );
-  
+
   // Get network and prepare deploy options
   const network = await provider.getNetwork();
   let deployOptions = {};
-  
+
   // Estimate gas
   try {
-    const deployTransaction = factory.getDeployTransaction(...deployData.constructorArgs);
+    const deployTransaction = factory.getDeployTransaction(
+      ...deployData.constructorArgs
+    );
     const gasEstimate = await provider.estimateGas(deployTransaction);
     deployOptions.gasLimit = gasEstimate.mul(150).div(100); // 50% buffer
   } catch (error) {
-    console.error(`Gas estimation failed for ${deployData.contractName}, using default`);
+    console.error(
+      `Gas estimation failed for ${deployData.contractName}, using default`
+    );
     // Use high default gas limit for Amoy
     if (network.chainId === 80002) {
       // Large contracts need more gas
-      if (deployData.contractName === "TragedyMetadata" || deployData.contractName === "BankedNFT") {
+      if (
+        deployData.contractName === "TragedyMetadata" ||
+        deployData.contractName === "BankedNFT"
+      ) {
         deployOptions.gasLimit = ethers.BigNumber.from("10000000"); // 10M gas
       } else {
         deployOptions.gasLimit = ethers.BigNumber.from("5000000"); // 5M gas
@@ -2079,29 +2264,38 @@ async function deployContractWithData(deployData) {
       deployOptions.gasLimit = ethers.BigNumber.from("3000000"); // 3M gas default
     }
   }
-  
+
   // For Amoy, double the gas price
   if (network.chainId === 80002) {
     const gasPrice = await provider.getGasPrice();
     deployOptions.gasPrice = gasPrice.mul(2);
   }
-  
-  const contract = await factory.deploy(...deployData.constructorArgs, deployOptions);
-  
+
+  const contract = await factory.deploy(
+    ...deployData.constructorArgs,
+    deployOptions
+  );
+
   // Show deploying status
   showMessage(`Waiting for ${deployData.contractName} to be mined...`, "info");
-  
+
   await contract.deployed();
 
   console.log(`${deployData.contractName} deployed at:`, contract.address);
-  
+
   // Update UI immediately when deployment is confirmed
   updateContractAddressInUI(deployData.contractName, contract.address);
-  showMessage(`${deployData.contractName} deployed successfully at ${contract.address}`, "success");
-  
+  showMessage(
+    `${deployData.contractName} deployed successfully at ${contract.address}`,
+    "success"
+  );
+
   // Save deployed address immediately
-  await saveDeployedAddressIncremental(deployData.contractName, contract.address);
-  
+  await saveDeployedAddressIncremental(
+    deployData.contractName,
+    contract.address
+  );
+
   return contract.address;
 }
 
@@ -2133,14 +2327,20 @@ function resetDeployment() {
 async function saveDeployedAddresses() {
   try {
     const projectName = document.getElementById("projectSelect").value;
-    const response = await fetch(`/api/projects/${projectName}/save-deployed-addresses`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(deployedAddresses)
-    });
-    
+    const response = await fetch(
+      `/api/projects/${projectName}/save-deployed-addresses`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(deployedAddresses),
+      }
+    );
+
     if (response.ok) {
-      showMessage("Deployed addresses saved to deployed-addresses.json", "success");
+      showMessage(
+        "Deployed addresses saved to deployed-addresses.json",
+        "success"
+      );
     }
   } catch (error) {
     console.error("Failed to save deployed addresses:", error);
@@ -2151,21 +2351,24 @@ async function saveDeployedAddresses() {
 async function saveDeployedAddressIncremental(contractName, address) {
   try {
     const projectName = document.getElementById("projectSelect").value;
-    
+
     // Update local deployed addresses
     deployedAddresses[contractName] = address;
     if (!window.deployedContracts) {
       window.deployedContracts = {};
     }
     window.deployedContracts[contractName] = address;
-    
+
     // Save to server
-    const response = await fetch(`/api/projects/${projectName}/save-deployed-addresses`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(deployedAddresses)
-    });
-    
+    const response = await fetch(
+      `/api/projects/${projectName}/save-deployed-addresses`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(deployedAddresses),
+      }
+    );
+
     if (!response.ok) {
       console.error("Failed to save deployed address incrementally");
     }
@@ -2226,86 +2429,94 @@ function showDeploymentSummary() {
   // Add event listeners
   setTimeout(() => {
     // Open Interface Interaction button
-    const openInterfaceBtn = document.getElementById("openInterfaceInteraction");
+    const openInterfaceBtn = document.getElementById(
+      "openInterfaceInteraction"
+    );
     if (openInterfaceBtn) {
       openInterfaceBtn.addEventListener("click", () => {
         // Hide deployment UI
         hideComplexDeploymentUI();
-        
+
         // Show interface interaction section
-        const interfaceSection = document.getElementById("interfaceInteractionSection");
+        const interfaceSection = document.getElementById(
+          "interfaceInteractionSection"
+        );
         if (interfaceSection) {
           interfaceSection.classList.remove("hidden");
         }
-        
+
         // Hide normal interaction section
-        const interactionSection = document.getElementById("interactionSection");
+        const interactionSection =
+          document.getElementById("interactionSection");
         if (interactionSection) {
           interactionSection.classList.add("hidden");
         }
-        
+
         // Update deployed contracts list
         showDeployedContractsQuickAccess();
         updateCurrentNetworkInfo();
-        
-        showMessage("Use Interface Interaction to interact with your deployed contracts", "info");
+
+        showMessage(
+          "Use Interface Interaction to interact with your deployed contracts",
+          "info"
+        );
       });
     }
-    
+
     const downloadBtn = document.getElementById("downloadDeploymentData");
     if (downloadBtn) {
       downloadBtn.addEventListener("click", () => {
-      // Convert network ID to name
-      const networkId = window.ethereum?.networkVersion || "1337";
-      let networkName = "unknown";
-      switch (networkId) {
-        case "1":
-          networkName = "mainnet";
-          break;
-        case "5":
-          networkName = "goerli";
-          break;
-        case "11155111":
-          networkName = "sepolia";
-          break;
-        case "137":
-          networkName = "polygon";
-          break;
-        case "1337":
-          networkName = "private";
-          break;
-        case "31337":
-          networkName = "hardhat";
-          break;
-        default:
-          networkName = `chain-${networkId}`;
-      }
+        // Convert network ID to name
+        const networkId = window.ethereum?.networkVersion || "1337";
+        let networkName = "unknown";
+        switch (networkId) {
+          case "1":
+            networkName = "mainnet";
+            break;
+          case "5":
+            networkName = "goerli";
+            break;
+          case "11155111":
+            networkName = "sepolia";
+            break;
+          case "137":
+            networkName = "polygon";
+            break;
+          case "1337":
+            networkName = "private";
+            break;
+          case "31337":
+            networkName = "hardhat";
+            break;
+          default:
+            networkName = `chain-${networkId}`;
+        }
 
-      const deploymentData = {
-        network: networkName,
-        timestamp: new Date().toISOString(),
-        contracts: deployedAddresses,
-      };
+        const deploymentData = {
+          network: networkName,
+          timestamp: new Date().toISOString(),
+          contracts: deployedAddresses,
+        };
 
-      const dataStr = JSON.stringify(deploymentData, null, 2);
-      const dataUri =
-        "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+        const dataStr = JSON.stringify(deploymentData, null, 2);
+        const dataUri =
+          "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
 
-      const link = document.createElement("a");
-      link.setAttribute("href", dataUri);
-      link.setAttribute("download", `deployment.json`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        const link = document.createElement("a");
+        link.setAttribute("href", dataUri);
+        link.setAttribute("download", `deployment.json`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       });
     }
 
     const copyAllBtn = document.getElementById("copyAllAddresses");
     if (copyAllBtn) {
       copyAllBtn.addEventListener("click", () => {
-    const addressesText = Object.entries(deployedAddresses)
-      .map(([name, address]) => `${name}: ${address}`)
-      .join("\n");
+        const addressesText = Object.entries(deployedAddresses)
+          .map(([name, address]) => `${name}: ${address}`)
+          .join("\n");
 
         navigator.clipboard.writeText(addressesText).then(() => {
           showMessage("All addresses copied to clipboard!", "success");
@@ -2324,47 +2535,49 @@ function showDeploymentSummary() {
 const originalOnProjectChange = onProjectChange;
 onProjectChange = async function (event) {
   // Hide interface interaction section and reset
-  const interfaceSection = document.getElementById("interfaceInteractionSection");
+  const interfaceSection = document.getElementById(
+    "interfaceInteractionSection"
+  );
   if (interfaceSection) interfaceSection.classList.add("hidden");
-  
+
   const interfaceArea = document.getElementById("interfaceContractArea");
   if (interfaceArea) interfaceArea.classList.add("hidden");
-  
+
   // Reset interface interaction form
   const contractSelect = document.getElementById("interfaceContractSelect");
   if (contractSelect) contractSelect.value = "";
-  
+
   const contractAddress = document.getElementById("interfaceContractAddress");
   if (contractAddress) contractAddress.value = "";
-  
+
   const networkSelect = document.getElementById("interfaceNetworkSelect");
   if (networkSelect) networkSelect.value = "current";
-  
+
   // Clear any displayed functions and results
   const readFunctions = document.getElementById("interfaceReadFunctions");
   if (readFunctions) readFunctions.innerHTML = "";
-  
+
   const writeFunctions = document.getElementById("interfaceWriteFunctions");
   if (writeFunctions) writeFunctions.innerHTML = "";
-  
+
   const eventsList = document.getElementById("interfaceEventsList");
   if (eventsList) eventsList.innerHTML = "";
-  
+
   // Reset current interface contract
   currentInterfaceContract = null;
   interfaceContracts = {};
-  
+
   // Hide other interaction sections
   const interactionSection = document.getElementById("interactionSection");
   if (interactionSection) interactionSection.classList.add("hidden");
-  
+
   const resultsSection = document.getElementById("resultsSection");
   if (resultsSection) resultsSection.classList.add("hidden");
-  
+
   // Show compile & deploy section (default view)
   const compileDeploySection = document.getElementById("compileDeploySection");
   if (compileDeploySection) compileDeploySection.classList.remove("hidden");
-  
+
   await originalOnProjectChange.call(this, event);
   await checkDeploymentConfig();
   await checkInterfaceDirectory();
@@ -2376,80 +2589,88 @@ let currentInterfaceContract = null;
 
 // Helper functions for parameter handling
 function getPlaceholderForType(type) {
-  if (type.includes('address')) return '0x...';
-  if (type.includes('uint') || type.includes('int')) return 'Enter number';
-  if (type.includes('bool')) return 'true or false';
-  if (type.includes('string')) return 'Enter text';
-  if (type.includes('bytes32')) return '0x... (64 hex chars)';
-  if (type.includes('bytes')) return '0x...';
-  if (type.includes('[]')) return '[value1, value2, ...]';
+  if (type.includes("address")) return "0x...";
+  if (type.includes("uint") || type.includes("int")) return "Enter number";
+  if (type.includes("bool")) return "true or false";
+  if (type.includes("string")) return "Enter text";
+  if (type.includes("bytes32")) return "0x... (64 hex chars)";
+  if (type.includes("bytes")) return "0x...";
+  if (type.includes("[]")) return "[value1, value2, ...]";
   return `Enter ${type}`;
 }
 
 function parseParameterValue(value, type) {
   // Handle empty values
   if (!value && value !== 0 && value !== false) {
-    if (type.includes('[]')) return [];
-    if (type.includes('uint') || type.includes('int')) return 0;
-    if (type === 'bool') return false;
-    if (type === 'address') return ethers.constants.AddressZero;
+    if (type.includes("[]")) return [];
+    if (type.includes("uint") || type.includes("int")) return 0;
+    if (type === "bool") return false;
+    if (type === "address") return ethers.constants.AddressZero;
     return value;
   }
-  
+
   // Arrays
-  if (type.includes('[]')) {
+  if (type.includes("[]")) {
     try {
       const parsed = JSON.parse(value);
-      const baseType = type.replace('[]', '');
-      return parsed.map(v => parseParameterValue(v, baseType));
+      const baseType = type.replace("[]", "");
+      return parsed.map((v) => parseParameterValue(v, baseType));
     } catch {
-      return value.split(',').map(v => parseParameterValue(v.trim(), type.replace('[]', '')));
+      return value
+        .split(",")
+        .map((v) => parseParameterValue(v.trim(), type.replace("[]", "")));
     }
   }
-  
+
   // Basic types
-  if (type === 'bool') return value === 'true' || value === true;
-  if (type.includes('uint') || type.includes('int')) {
-    if (type.includes('uint256') || type.includes('int256')) {
+  if (type === "bool") return value === "true" || value === true;
+  if (type.includes("uint") || type.includes("int")) {
+    if (type.includes("uint256") || type.includes("int256")) {
       return ethers.BigNumber.from(value);
     }
     return parseInt(value);
   }
-  if (type === 'address') return ethers.utils.getAddress(value);
-  if (type.includes('bytes32')) return ethers.utils.formatBytes32String(value);
-  if (type.includes('bytes')) return value;
-  
+  if (type === "address") return ethers.utils.getAddress(value);
+  if (type.includes("bytes32")) return ethers.utils.formatBytes32String(value);
+  if (type.includes("bytes")) return value;
+
   return value;
 }
 
 function formatOutputValue(value, type) {
-  if (value === null || value === undefined) return 'null';
-  
+  if (value === null || value === undefined) return "null";
+
   // BigNumber
   if (ethers.BigNumber.isBigNumber(value)) {
     return value.toString();
   }
-  
+
   // Arrays
   if (Array.isArray(value)) {
-    return '[' + value.map(v => formatOutputValue(v, type.replace('[]', ''))).join(', ') + ']';
+    return (
+      "[" +
+      value
+        .map((v) => formatOutputValue(v, type.replace("[]", "")))
+        .join(", ") +
+      "]"
+    );
   }
-  
+
   // Address
-  if (type === 'address') {
+  if (type === "address") {
     return value;
   }
-  
+
   // Boolean
-  if (type === 'bool') {
-    return value ? 'true' : 'false';
+  if (type === "bool") {
+    return value ? "true" : "false";
   }
-  
+
   // Bytes
-  if (type.includes('bytes')) {
+  if (type.includes("bytes")) {
     return value;
   }
-  
+
   // Default
   return value.toString();
 }
@@ -2462,7 +2683,7 @@ async function checkInterfaceDirectory() {
     if (response.ok) {
       const interfaces = await response.json();
       const hasInterfaces = interfaces && interfaces.length > 0;
-      
+
       // Show/hide interface interaction button
       const interfaceBtn = document.getElementById("interfaceInteraction");
       if (hasInterfaces) {
@@ -2480,11 +2701,12 @@ async function checkInterfaceDirectory() {
 function loadInterfaceContracts(interfaces) {
   interfaceContracts = {};
   const select = document.getElementById("interfaceContractSelect");
-  select.innerHTML = '<option value="">Select a contract with interface...</option>';
-  
-  interfaces.forEach(file => {
-    if (file.endsWith('.abi.json')) {
-      const contractName = file.replace('.abi.json', '');
+  select.innerHTML =
+    '<option value="">Select a contract with interface...</option>';
+
+  interfaces.forEach((file) => {
+    if (file.endsWith(".abi.json")) {
+      const contractName = file.replace(".abi.json", "");
       interfaceContracts[contractName] = file;
       const option = document.createElement("option");
       option.value = contractName;
@@ -2494,40 +2716,18 @@ function loadInterfaceContracts(interfaces) {
   });
 }
 
-// Interface interaction button event listener
-document.getElementById("interfaceInteraction").addEventListener("click", () => {
-  // Hide compile & deploy section
-  const compileDeploySection = document.getElementById("compileDeploySection");
-  if (compileDeploySection) compileDeploySection.classList.add("hidden");
-  
-  // Hide other sections
-  const resultsSection = document.getElementById("resultsSection");
-  if (resultsSection) resultsSection.classList.add("hidden");
-  
-  const interactionSection = document.getElementById("interactionSection");
-  if (interactionSection) interactionSection.classList.add("hidden");
-  
-  // Show interface interaction section
-  const interfaceSection = document.getElementById("interfaceInteractionSection");
-  if (interfaceSection) interfaceSection.classList.remove("hidden");
-  
-  // Update current network info
-  updateCurrentNetworkInfo();
-  
-  // Show deployed contracts if available
-  showDeployedContractsQuickAccess();
-});
+// Remove old interface interaction button event listener since we're using tabs now
 
 // Update current network info display
 async function updateCurrentNetworkInfo() {
   const networkInfo = document.getElementById("currentNetworkInfo");
-  
+
   if (provider) {
     try {
       const network = await provider.getNetwork();
       const chainId = network.chainId;
       let networkName = network.name;
-      
+
       // Map common chain IDs to names
       const chainNames = {
         1: "Ethereum Mainnet",
@@ -2543,66 +2743,70 @@ async function updateCurrentNetworkInfo() {
         42161: "Arbitrum One",
         421613: "Arbitrum Goerli",
         10: "Optimism Mainnet",
-        420: "Optimism Goerli"
+        420: "Optimism Goerli",
       };
-      
+
       if (chainNames[chainId]) {
         networkName = chainNames[chainId];
       }
-      
+
       networkInfo.innerHTML = `Currently connected to: <span class="font-semibold">${networkName}</span> (Chain ID: ${chainId})`;
     } catch (error) {
-      networkInfo.innerHTML = '<span class="text-gray-500">Network information not available</span>';
+      networkInfo.innerHTML =
+        '<span class="text-gray-500">Network information not available</span>';
     }
   } else {
-    networkInfo.innerHTML = '<span class="text-gray-500">Please connect your wallet to see the current network</span>';
+    networkInfo.innerHTML =
+      '<span class="text-gray-500">Please connect your wallet to see the current network</span>';
   }
 }
 
-// Update network selection listener
-document.getElementById("interfaceNetworkSelect").addEventListener("change", (e) => {
-  if (e.target.value === "current") {
-    updateCurrentNetworkInfo();
-  }
-});
+// Network selection listener is now in initializeInterfaceInteractionListeners
 
-// Load interface contract button
-document.getElementById("loadInterfaceContract").addEventListener("click", async () => {
+// Load interface contract function
+async function loadInterfaceContract() {
   const contractName = document.getElementById("interfaceContractSelect").value;
-  const contractAddress = document.getElementById("interfaceContractAddress").value;
+  const contractAddress = document.getElementById(
+    "interfaceContractAddress"
+  ).value;
   const network = document.getElementById("interfaceNetworkSelect").value;
-  
+
   if (!contractName || !contractAddress) {
     showMessage("Please select a contract and enter an address", "error");
     return;
   }
-  
+
   if (!ethers.utils.isAddress(contractAddress)) {
     showMessage("Invalid contract address", "error");
     return;
   }
-  
+
   try {
     // Load ABI from interface directory
-    const response = await fetch(`/api/projects/${selectedProject}/interface/${interfaceContracts[contractName]}`);
+    const response = await fetch(
+      `/api/projects/${selectedProject}/interface/${interfaceContracts[contractName]}`
+    );
     if (!response.ok) {
       throw new Error("Failed to load ABI");
     }
-    
+
     const abi = await response.json();
-    
+
     // Handle network selection
     let useProvider = provider;
     let networkDisplay = network;
-    
+
     if (network === "current") {
       // Use current connected provider
       if (!provider && !signer) {
-        showMessage("Please connect your wallet first to use the current network", "error");
+        showMessage(
+          "Please connect your wallet first to use the current network",
+          "error"
+        );
         return;
       }
       useProvider = provider || signer.provider;
-      
+
       // Get network name for display
       try {
         const currentNetwork = await useProvider.getNetwork();
@@ -2621,7 +2825,7 @@ document.getElementById("loadInterfaceContract").addEventListener("click", async
           42161: "Arbitrum One",
           421613: "Arbitrum Goerli",
           10: "Optimism Mainnet",
-          420: "Optimism Goerli"
+          420: "Optimism Goerli",
         };
         networkDisplay = chainNames[chainId] || `Chain ID: ${chainId}`;
       } catch {
@@ -2632,69 +2836,119 @@ document.getElementById("loadInterfaceContract").addEventListener("click", async
       if (!provider && !signer) {
         // Create a default provider for the selected network
         const networkMap = {
-          'polygon': 'https://polygon-rpc.com',
-          'amoy': 'https://rpc-amoy.polygon.technology',
-          'mainnet': 'https://eth-mainnet.g.alchemy.com/v2/demo',
-          'sepolia': 'https://rpc.sepolia.org'
+          polygon: "https://polygon-rpc.com",
+          amoy: "https://rpc-amoy.polygon.technology",
+          mainnet: "https://eth-mainnet.g.alchemy.com/v2/demo",
+          sepolia: "https://rpc.sepolia.org",
         };
-        
+
         if (networkMap[network]) {
-          useProvider = new ethers.providers.JsonRpcProvider(networkMap[network]);
+          useProvider = new ethers.providers.JsonRpcProvider(
+            networkMap[network]
+          );
         } else {
           showMessage("Unknown network selected", "error");
           return;
         }
       }
     }
-    
+
     // Update display
     document.getElementById("interfaceContractName").textContent = contractName;
-    document.getElementById("interfaceContractAddressDisplay").textContent = contractAddress;
-    document.getElementById("interfaceNetworkDisplay").textContent = networkDisplay;
-    
+    document.getElementById("interfaceContractAddressDisplay").textContent =
+      contractAddress;
+    document.getElementById("interfaceNetworkDisplay").textContent =
+      networkDisplay;
+
     // Create contract instance with provider
-    currentInterfaceContract = new ethers.Contract(contractAddress, abi, useProvider);
-    
+    currentInterfaceContract = new ethers.Contract(
+      contractAddress,
+      abi,
+      useProvider
+    );
+
     // Verify contract by trying to get bytecode
     try {
       const code = await useProvider.getCode(contractAddress);
-      if (code === '0x') {
-        showMessage(`Warning: No contract found at ${contractAddress} on ${networkDisplay}. The contract may not be deployed on this network.`, "warning");
+      if (code === "0x") {
+        showMessage(
+          `Warning: No contract found at ${contractAddress} on ${networkDisplay}. The contract may not be deployed on this network.`,
+          "warning"
+        );
       }
     } catch (e) {
       console.warn("Could not verify contract existence:", e);
     }
-    
+
     // Show contract area
     document.getElementById("interfaceContractArea").classList.remove("hidden");
-    
+
     // Load functions
     loadInterfaceFunctions(abi);
-    
-    showMessage(`Loaded ${contractName} at ${contractAddress} on ${networkDisplay}`, "success");
+
+    showMessage(
+      `Loaded ${contractName} at ${contractAddress} on ${networkDisplay}`,
+      "success"
+    );
   } catch (error) {
     showMessage("Failed to load contract: " + error.message, "error");
     console.error("Contract loading error:", error);
   }
-});
+}
 
-// Tab switching for interface interaction
-document.getElementById("interfaceReadTab").addEventListener("click", () => {
-  switchInterfaceTab("read");
-});
+// Initialize interface interaction event listeners
+function initializeInterfaceInteractionListeners() {
+  // Load interface contract button
+  const loadInterfaceBtn = document.getElementById("loadInterfaceContract");
+  if (loadInterfaceBtn) {
+    loadInterfaceBtn.addEventListener("click", loadInterfaceContract);
+  }
 
-document.getElementById("interfaceWriteTab").addEventListener("click", () => {
-  switchInterfaceTab("write");
-});
+  // Interface tab switching
+  const interfaceReadTab = document.getElementById("interfaceReadTab");
+  if (interfaceReadTab) {
+    interfaceReadTab.addEventListener("click", () => {
+      switchInterfaceTab("read");
+    });
+  }
 
-document.getElementById("interfaceEventsTab").addEventListener("click", () => {
-  switchInterfaceTab("events");
-});
+  const interfaceWriteTab = document.getElementById("interfaceWriteTab");
+  if (interfaceWriteTab) {
+    interfaceWriteTab.addEventListener("click", () => {
+      switchInterfaceTab("write");
+    });
+  }
+
+  const interfaceEventsTab = document.getElementById("interfaceEventsTab");
+  if (interfaceEventsTab) {
+    interfaceEventsTab.addEventListener("click", () => {
+      switchInterfaceTab("events");
+    });
+  }
+
+  // Interface events button
+  const interfaceLoadEventsBtn = document.getElementById("interfaceLoadEvents");
+  if (interfaceLoadEventsBtn) {
+    interfaceLoadEventsBtn.addEventListener("click", loadInterfaceEvents);
+  }
+
+  // Network selection change
+  const interfaceNetworkSelect = document.getElementById(
+    "interfaceNetworkSelect"
+  );
+  if (interfaceNetworkSelect) {
+    interfaceNetworkSelect.addEventListener("change", (e) => {
+      if (e.target.value === "current") {
+        updateCurrentNetworkInfo();
+      }
+    });
+  }
+}
 
 function switchInterfaceTab(tab) {
   // Update tab styles
   const tabs = ["interfaceReadTab", "interfaceWriteTab", "interfaceEventsTab"];
-  tabs.forEach(tabId => {
+  tabs.forEach((tabId) => {
     const tabEl = document.getElementById(tabId);
     if (tabId === `interface${tab.charAt(0).toUpperCase() + tab.slice(1)}Tab`) {
       tabEl.classList.add("text-blue-600", "border-b-2", "border-blue-600");
@@ -2704,18 +2958,24 @@ function switchInterfaceTab(tab) {
       tabEl.classList.add("text-gray-600");
     }
   });
-  
+
   // Show/hide content
-  document.getElementById("interfaceReadFunctions").classList.toggle("hidden", tab !== "read");
-  document.getElementById("interfaceWriteFunctions").classList.toggle("hidden", tab !== "write");
-  document.getElementById("interfaceEventsSection").classList.toggle("hidden", tab !== "events");
+  document
+    .getElementById("interfaceReadFunctions")
+    .classList.toggle("hidden", tab !== "read");
+  document
+    .getElementById("interfaceWriteFunctions")
+    .classList.toggle("hidden", tab !== "write");
+  document
+    .getElementById("interfaceEventsSection")
+    .classList.toggle("hidden", tab !== "events");
 }
 
 function loadInterfaceFunctions(abi) {
   const readFunctions = [];
   const writeFunctions = [];
-  
-  abi.forEach(item => {
+
+  abi.forEach((item) => {
     if (item.type === "function") {
       if (item.stateMutability === "view" || item.stateMutability === "pure") {
         readFunctions.push(item);
@@ -2724,18 +2984,18 @@ function loadInterfaceFunctions(abi) {
       }
     }
   });
-  
+
   // Render read functions
   const readContainer = document.getElementById("interfaceReadFunctions");
   readContainer.innerHTML = "";
-  readFunctions.forEach(func => {
+  readFunctions.forEach((func) => {
     readContainer.appendChild(createInterfaceFunctionUI(func, "read"));
   });
-  
+
   // Render write functions
   const writeContainer = document.getElementById("interfaceWriteFunctions");
   writeContainer.innerHTML = "";
-  writeFunctions.forEach(func => {
+  writeFunctions.forEach((func) => {
     writeContainer.appendChild(createInterfaceFunctionUI(func, "write"));
   });
 }
@@ -2743,49 +3003,50 @@ function loadInterfaceFunctions(abi) {
 function createInterfaceFunctionUI(func, type) {
   const div = document.createElement("div");
   div.className = "border rounded p-4";
-  
+
   const title = document.createElement("h4");
   title.className = "font-semibold mb-2";
   title.textContent = func.name;
   div.appendChild(title);
-  
+
   // Create inputs for parameters
   if (func.inputs.length > 0) {
     func.inputs.forEach((input, index) => {
       const inputDiv = document.createElement("div");
       inputDiv.className = "mb-2";
-      
+
       const label = document.createElement("label");
       label.className = "block text-sm font-medium mb-1";
       label.textContent = `${input.name || `param${index}`} (${input.type})`;
       inputDiv.appendChild(label);
-      
+
       const inputEl = document.createElement("input");
       inputEl.type = "text";
       inputEl.id = `interface-${func.name}-${index}`;
       inputEl.className = "w-full border rounded px-3 py-2 text-sm";
       inputEl.placeholder = getPlaceholderForType(input.type);
       inputDiv.appendChild(inputEl);
-      
+
       div.appendChild(inputDiv);
     });
   }
-  
+
   // Create button
   const button = document.createElement("button");
-  button.className = type === "read" 
-    ? "bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
-    : "bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-2";
+  button.className =
+    type === "read"
+      ? "bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
+      : "bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-2";
   button.textContent = type === "read" ? "Query" : "Execute";
   button.onclick = () => executeInterfaceFunction(func, type);
   div.appendChild(button);
-  
+
   // Result area
   const resultDiv = document.createElement("div");
   resultDiv.id = `interface-result-${func.name}`;
   resultDiv.className = "mt-2 text-sm";
   div.appendChild(resultDiv);
-  
+
   return div;
 }
 
@@ -2794,77 +3055,91 @@ async function executeInterfaceFunction(func, type) {
     showMessage("No contract loaded", "error");
     return;
   }
-  
+
   try {
     // Collect parameters
     const params = [];
     for (let i = 0; i < func.inputs.length; i++) {
       const inputEl = document.getElementById(`interface-${func.name}-${i}`);
       const value = inputEl.value;
-      
+
       // Parse value based on type
       const parsedValue = parseParameterValue(value, func.inputs[i].type);
       params.push(parsedValue);
     }
-    
+
     const resultDiv = document.getElementById(`interface-result-${func.name}`);
-    
+
     if (type === "read") {
       // Call read function
       resultDiv.innerHTML = '<span class="text-gray-500">Querying...</span>';
       const result = await currentInterfaceContract[func.name](...params);
-      
+
       // Format result
       let formattedResult;
       if (func.outputs.length === 1) {
         formattedResult = formatOutputValue(result, func.outputs[0].type);
       } else {
-        formattedResult = func.outputs.map((output, index) => 
-          `${output.name || `output${index}`}: ${formatOutputValue(result[index], output.type)}`
-        ).join("<br>");
+        formattedResult = func.outputs
+          .map(
+            (output, index) =>
+              `${output.name || `output${index}`}: ${formatOutputValue(
+                result[index],
+                output.type
+              )}`
+          )
+          .join("<br>");
       }
-      
+
       resultDiv.innerHTML = `<div class="bg-green-50 p-2 rounded">${formattedResult}</div>`;
     } else {
       // Execute write function
       if (!signer) {
-        showMessage("Please connect your wallet to execute transactions", "error");
+        showMessage(
+          "Please connect your wallet to execute transactions",
+          "error"
+        );
         return;
       }
-      
+
       // Connect contract with signer for write operations
       const contractWithSigner = currentInterfaceContract.connect(signer);
-      
-      resultDiv.innerHTML = '<span class="text-gray-500">Sending transaction...</span>';
+
+      resultDiv.innerHTML =
+        '<span class="text-gray-500">Sending transaction...</span>';
       const tx = await contractWithSigner[func.name](...params);
-      
-      resultDiv.innerHTML = `<span class="text-blue-500">Transaction sent: ${tx.hash.substring(0, 10)}...</span>`;
-      
+
+      resultDiv.innerHTML = `<span class="text-blue-500">Transaction sent: ${tx.hash.substring(
+        0,
+        10
+      )}...</span>`;
+
       const receipt = await tx.wait();
       resultDiv.innerHTML = `<div class="bg-green-50 p-2 rounded">Transaction confirmed! Gas used: ${receipt.gasUsed.toString()}</div>`;
     }
   } catch (error) {
     const resultDiv = document.getElementById(`interface-result-${func.name}`);
-    
+
     // More detailed error handling
     let errorMessage = error.message;
-    
+
     // Log full error for debugging
-    console.error('Full error object:', error);
-    
+    console.error("Full error object:", error);
+
     // Handle MetaMask RPC errors
     if (error.code === -32603) {
       // Internal JSON-RPC error - try to get more details
       if (error.data && error.data.message) {
         errorMessage = `MetaMask error: ${error.data.message}`;
-      } else if (error.stack && error.stack.includes('message')) {
+      } else if (error.stack && error.stack.includes("message")) {
         // Try to extract message from stack
         const stackMatch = error.stack.match(/"message":\s*"([^"]+)"/);
         if (stackMatch) {
           errorMessage = `MetaMask error: ${stackMatch[1]}`;
         }
       } else {
-        errorMessage = 'MetaMask internal error. Please check: 1) Gas limit, 2) ETH balance, 3) Network connection';
+        errorMessage =
+          "MetaMask internal error. Please check: 1) Gas limit, 2) ETH balance, 3) Network connection";
       }
     } else if (error.reason) {
       errorMessage = error.reason;
@@ -2872,75 +3147,77 @@ async function executeInterfaceFunction(func, type) {
       errorMessage = error.data.message;
     } else if (error.error && error.error.data && error.error.data.message) {
       errorMessage = error.error.data.message;
-    } else if (error.message && error.message.includes('execution reverted:')) {
+    } else if (error.message && error.message.includes("execution reverted:")) {
       // Extract revert reason from error message
       const match = error.message.match(/execution reverted: (.+)/);
       if (match) {
         errorMessage = match[1];
       }
     }
-    
+
     // Handle specific error codes
-    if (error.code === 'CALL_EXCEPTION') {
+    if (error.code === "CALL_EXCEPTION") {
       // For empty data response, it usually means wrong network or contract doesn't exist
-      if (error.data === '0x' || error.data === null) {
+      if (error.data === "0x" || error.data === null) {
         errorMessage = `Contract call failed. Please check:
           1. The contract exists at this address on the selected network
           2. The ABI matches the deployed contract
           3. You are connected to the correct network
-          
-          Method called: ${error.method || 'unknown'}`;
-      } else if (!errorMessage.includes('execution reverted')) {
+
+          Method called: ${error.method || "unknown"}`;
+      } else if (!errorMessage.includes("execution reverted")) {
         errorMessage = `Call failed: ${errorMessage}`;
       }
-    } else if (error.code === 'NETWORK_ERROR') {
-      errorMessage = 'Network error. Please check your connection and the selected network.';
-    } else if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
+    } else if (error.code === "NETWORK_ERROR") {
+      errorMessage =
+        "Network error. Please check your connection and the selected network.";
+    } else if (error.code === "UNPREDICTABLE_GAS_LIMIT") {
       // Check if there's a revert reason
       if (error.reason || (error.error && error.error.message)) {
         errorMessage = error.reason || error.error.message;
       }
-    } else if (error.code === 'ACTION_REJECTED') {
-      errorMessage = 'Transaction was rejected by the user.';
+    } else if (error.code === "ACTION_REJECTED") {
+      errorMessage = "Transaction was rejected by the user.";
     }
-    
+
     resultDiv.innerHTML = `<div class="bg-red-50 p-2 rounded text-red-600 text-sm">
       <div class="font-semibold">Error:</div>
       <div class="mt-1">${errorMessage}</div>
     </div>`;
-    
-    console.error('Contract interaction error:', error);
+
+    console.error("Contract interaction error:", error);
   }
 }
 
 // Load events for interface contracts
-document.getElementById("interfaceLoadEvents").addEventListener("click", async () => {
+async function loadInterfaceEvents() {
   if (!currentInterfaceContract) {
     showMessage("No contract loaded", "error");
     return;
   }
-  
+
   try {
     const eventsList = document.getElementById("interfaceEventsList");
     eventsList.innerHTML = '<div class="text-gray-500">Loading events...</div>';
-    
+
     // Get recent events (last 100 blocks)
     const currentBlock = await provider.getBlockNumber();
     const fromBlock = Math.max(0, currentBlock - 100);
-    
+
     const filter = {
       address: currentInterfaceContract.address,
       fromBlock: fromBlock,
-      toBlock: currentBlock
+      toBlock: currentBlock,
     };
-    
+
     const logs = await provider.getLogs(filter);
-    
+
     if (logs.length === 0) {
-      eventsList.innerHTML = '<div class="text-gray-500">No recent events found</div>';
+      eventsList.innerHTML =
+        '<div class="text-gray-500">No recent events found</div>';
       return;
     }
-    
+
     // Parse logs
     eventsList.innerHTML = "";
     for (const log of logs) {
@@ -2948,13 +3225,17 @@ document.getElementById("interfaceLoadEvents").addEventListener("click", async (
         const parsedLog = currentInterfaceContract.interface.parseLog(log);
         const eventDiv = document.createElement("div");
         eventDiv.className = "border rounded p-3 mb-2";
-        
+
         eventDiv.innerHTML = `
           <div class="font-semibold">${parsedLog.name}</div>
           <div class="text-sm text-gray-600">Block: ${log.blockNumber}</div>
-          <div class="text-sm mt-1">${JSON.stringify(parsedLog.args, null, 2)}</div>
+          <div class="text-sm mt-1">${JSON.stringify(
+            parsedLog.args,
+            null,
+            2
+          )}</div>
         `;
-        
+
         eventsList.appendChild(eventDiv);
       } catch (e) {
         // Skip logs that can't be parsed
@@ -2963,8 +3244,7 @@ document.getElementById("interfaceLoadEvents").addEventListener("click", async (
   } catch (error) {
     showMessage("Failed to load events: " + error.message, "error");
   }
-});
-
+}
 
 // Make functions available globally for onclick handlers
 window.copyAddress = copyAddress;
@@ -2974,30 +3254,38 @@ window.startFromStep = startFromStep;
 
 // Function to show deployed contracts in Interface Interaction
 function showDeployedContractsQuickAccess() {
-  const quickAccessDiv = document.getElementById("deployedContractsQuickAccess");
+  const quickAccessDiv = document.getElementById(
+    "deployedContractsQuickAccess"
+  );
   const contractsList = document.getElementById("deployedContractsList");
-  
+
   if (!quickAccessDiv || !contractsList) return;
-  
+
   // Combine deployedAddresses and window.deployedContracts
   const allDeployedContracts = { ...deployedAddresses };
   if (window.deployedContracts) {
     Object.assign(allDeployedContracts, window.deployedContracts);
   }
-  
+
   if (Object.keys(allDeployedContracts).length > 0) {
     quickAccessDiv.classList.remove("hidden");
     contractsList.innerHTML = Object.entries(allDeployedContracts)
-      .map(([name, address]) => `
+      .map(
+        ([name, address]) => `
         <div class="flex justify-between items-center p-1 hover:bg-blue-100 rounded">
           <span class="font-mono font-semibold">${name}:</span>
           <div class="flex items-center gap-2">
-            <span class="text-gray-600">${address.slice(0, 6)}...${address.slice(-4)}</span>
+            <span class="text-gray-600">${address.slice(
+              0,
+              6
+            )}...${address.slice(-4)}</span>
             <button onclick="copyAddress('${address}')" class="text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
             <button onclick="useAddressInInterface('${address}', '${name}')" class="text-green-500 hover:text-green-700" title="Use in interface">➡️</button>
           </div>
         </div>
-      `).join("");
+      `
+      )
+      .join("");
   } else {
     quickAccessDiv.classList.add("hidden");
   }
@@ -3007,37 +3295,49 @@ function showDeployedContractsQuickAccess() {
 function useAddressInInterface(address, contractName) {
   const addressInput = document.getElementById("interfaceContractAddress");
   const contractSelect = document.getElementById("interfaceContractSelect");
-  
+
   if (addressInput) {
     addressInput.value = address;
   }
-  
+
   if (contractSelect && contractName) {
     // Try to find and select the matching contract
     const options = Array.from(contractSelect.options);
-    const matchingOption = options.find(option => {
+    const matchingOption = options.find((option) => {
       // Check if the option value or text contains the contract name
-      return option.value.includes(contractName) || option.text.includes(contractName);
+      return (
+        option.value.includes(contractName) ||
+        option.text.includes(contractName)
+      );
     });
-    
+
     if (matchingOption) {
       contractSelect.value = matchingOption.value;
       showMessage(`Selected ${contractName} and copied address`, "success");
     } else {
       // If no exact match, try to find a suitable interface
-      const interfaceOption = options.find(option => {
+      const interfaceOption = options.find((option) => {
         // Common patterns for interface selection
-        if (contractName.includes("NFT") && option.text.includes("NFT")) return true;
-        if (contractName.includes("Token") && option.text.includes("Token")) return true;
-        if (contractName.includes("Bank") && option.text.includes("Bank")) return true;
+        if (contractName.includes("NFT") && option.text.includes("NFT"))
+          return true;
+        if (contractName.includes("Token") && option.text.includes("Token"))
+          return true;
+        if (contractName.includes("Bank") && option.text.includes("Bank"))
+          return true;
         return false;
       });
-      
+
       if (interfaceOption) {
         contractSelect.value = interfaceOption.value;
-        showMessage(`Selected ${interfaceOption.text} interface for ${contractName}`, "info");
+        showMessage(
+          `Selected ${interfaceOption.text} interface for ${contractName}`,
+          "info"
+        );
       } else {
-        showMessage("Address copied. Please select the appropriate interface manually.", "info");
+        showMessage(
+          "Address copied. Please select the appropriate interface manually.",
+          "info"
+        );
       }
     }
   } else {
