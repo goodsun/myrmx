@@ -1160,9 +1160,9 @@ app.post('/api/projects/:projectName/deploy-step', async (req, res) => {
 });
 
 // Get deployed addresses
-app.get('/api/projects/:projectName/deployed-addresses.json', async (req, res) => {
+app.get('/api/projects/:projectName/deployed-addresses-:networkId.json', async (req, res) => {
     try {
-        const { projectName } = req.params;
+        const { projectName, networkId } = req.params;
         
         // Validate project name
         if (!validateProjectName(projectName)) {
@@ -1170,7 +1170,7 @@ app.get('/api/projects/:projectName/deployed-addresses.json', async (req, res) =
         }
         
         const projectPath = path.join(__dirname, '../projects', projectName);
-        const addressesPath = path.join(projectPath, 'deployed-addresses.json');
+        const addressesPath = path.join(projectPath, `deployed-addresses-${networkId}.json`);
         
         try {
             const data = await fs.readFile(addressesPath, 'utf8');
@@ -1189,7 +1189,7 @@ app.get('/api/projects/:projectName/deployed-addresses.json', async (req, res) =
 app.post('/api/projects/:projectName/save-deployed-addresses', async (req, res) => {
     try {
         const { projectName } = req.params;
-        const addresses = req.body;
+        const { networkId, addresses } = req.body;
         
         // Validate project name
         if (!validateProjectName(projectName)) {
@@ -1197,7 +1197,7 @@ app.post('/api/projects/:projectName/save-deployed-addresses', async (req, res) 
         }
         
         const projectPath = path.join(__dirname, '../projects', projectName);
-        const addressesPath = path.join(projectPath, 'deployed-addresses.json');
+        const addressesPath = path.join(projectPath, `deployed-addresses-${networkId}.json`);
         
         // Save addresses
         await fs.writeFile(addressesPath, JSON.stringify(addresses, null, 2));

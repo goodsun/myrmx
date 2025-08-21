@@ -129,9 +129,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateCurrentNetworkInfo();
     showDeployedContractsQuickAccess();
 
-    // Load interfaces if not already loaded
+    // Check and load interfaces if available
     if (selectedProject) {
-      loadInterfaces();
+      checkInterfaceDirectory();
     }
   });
 
@@ -1723,8 +1723,19 @@ async function checkDeployedAddresses() {
     const projectName = document.getElementById("projectSelect").value;
     if (!projectName) return;
 
+    // Get network ID
+    let networkId = 'unknown';
+    if (provider) {
+      try {
+        const network = await provider.getNetwork();
+        networkId = network.chainId;
+      } catch (e) {
+        console.error('Failed to get network ID:', e);
+      }
+    }
+
     const response = await fetch(
-      `/api/projects/${projectName}/deployed-addresses.json`
+      `/api/projects/${projectName}/deployed-addresses-${networkId}.json`
     );
 
     if (response.ok) {
@@ -2352,6 +2363,17 @@ async function saveDeployedAddressIncremental(contractName, address) {
   try {
     const projectName = document.getElementById("projectSelect").value;
 
+    // Get network ID
+    let networkId = 'unknown';
+    if (provider) {
+      try {
+        const network = await provider.getNetwork();
+        networkId = network.chainId;
+      } catch (e) {
+        console.error('Failed to get network ID:', e);
+      }
+    }
+
     // Update local deployed addresses
     deployedAddresses[contractName] = address;
     if (!window.deployedContracts) {
@@ -2365,7 +2387,10 @@ async function saveDeployedAddressIncremental(contractName, address) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(deployedAddresses),
+        body: JSON.stringify({
+          networkId: networkId,
+          addresses: deployedAddresses
+        }),
       }
     );
 
@@ -2684,13 +2709,9 @@ async function checkInterfaceDirectory() {
       const interfaces = await response.json();
       const hasInterfaces = interfaces && interfaces.length > 0;
 
-      // Show/hide interface interaction button
-      const interfaceBtn = document.getElementById("interfaceInteraction");
+      // Load interface contracts if interfaces exist
       if (hasInterfaces) {
-        interfaceBtn.classList.remove("hidden");
         loadInterfaceContracts(interfaces);
-      } else {
-        interfaceBtn.classList.add("hidden");
       }
     }
   } catch (error) {
@@ -3031,6 +3052,26 @@ function createInterfaceFunctionUI(func, type) {
     });
   }
 
+  // Add ETH value input for payable functions
+  if (func.stateMutability === "payable" && type === "write") {
+    const ethDiv = document.createElement("div");
+    ethDiv.className = "mb-2 border-t pt-2 mt-2";
+    
+    const ethLabel = document.createElement("label");
+    ethLabel.className = "block text-sm font-medium mb-1 text-blue-600";
+    ethLabel.textContent = "ETH Value to Send (in ETH)";
+    ethDiv.appendChild(ethLabel);
+    
+    const ethInput = document.createElement("input");
+    ethInput.type = "text";
+    ethInput.id = `interface-${func.name}-eth-value`;
+    ethInput.className = "w-full border rounded px-3 py-2 text-sm";
+    ethInput.placeholder = "0.0";
+    ethDiv.appendChild(ethInput);
+    
+    div.appendChild(ethDiv);
+  }
+
   // Create button
   const button = document.createElement("button");
   button.className =
@@ -3107,7 +3148,32 @@ async function executeInterfaceFunction(func, type) {
 
       resultDiv.innerHTML =
         '<span class="text-gray-500">Sending transaction...</span>';
-      const tx = await contractWithSigner[func.name](...params);
+      
+      // Prepare transaction options
+      let txOptions = {};
+      
+      // Add ETH value for payable functions
+      if (func.stateMutability === "payable") {
+        const ethValueInput = document.getElementById(`interface-${func.name}-eth-value`);
+        if (ethValueInput && ethValueInput.value) {
+          try {
+            txOptions.value = ethers.utils.parseEther(ethValueInput.value);
+          } catch (e) {
+            showMessage("Invalid ETH value", "error");
+            return;
+          }
+        }
+      }
+      
+      // For functions that might need high gas (like mint), use manual gas limit
+      if (func.name.toLowerCase().includes('mint') || 
+          func.name.toLowerCase().includes('create') ||
+          func.name.toLowerCase().includes('deploy')) {
+        // Use high gas limit for mint/create operations with on-chain data
+        txOptions.gasLimit = 10000000; // 10M gas
+      }
+      
+      const tx = await contractWithSigner[func.name](...params, txOptions);
 
       resultDiv.innerHTML = `<span class="text-blue-500">Transaction sent: ${tx.hash.substring(
         0,
@@ -3125,6 +3191,11 @@ async function executeInterfaceFunction(func, type) {
 
     // Log full error for debugging
     console.error("Full error object:", error);
+    
+    // Check if there's nested error data
+    if (error.data) {
+      console.error("Error data:", error.data);
+    }
 
     // Handle MetaMask RPC errors
     if (error.code === -32603) {
@@ -3175,6 +3246,25 @@ async function executeInterfaceFunction(func, type) {
       // Check if there's a revert reason
       if (error.reason || (error.error && error.error.message)) {
         errorMessage = error.reason || error.error.message;
+      } else {
+        errorMessage = "Cannot estimate gas. The transaction may fail.";
+      }
+      
+      // If it's a view function, suggest checking contract state
+      if (functionType === "read") {
+        errorMessage += " This might indicate the contract is not properly initialized or the function requirements are not met.";
+      }
+      
+      // Show error data if available
+      if (error.error && error.error.data && error.error.data.data) {
+        const errorData = error.error.data.data;
+        errorMessage += ` (Error: ${errorData})`;
+        
+        // Try to decode common error signatures
+        if (errorData === "0x3d6c2500") {
+          errorMessage += " - This error might indicate: insufficient mint fee, max supply reached, or metadata bank not set.";
+          errorMessage += " Check the contract's mintFee, totalMinted/maxSupply, and metadataBank values.";
+        }
       }
     } else if (error.code === "ACTION_REJECTED") {
       errorMessage = "Transaction was rejected by the user.";
