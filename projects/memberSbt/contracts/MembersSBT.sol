@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "./Base64.sol";
+import "./IMemberCardRenderer.sol";
 
 /**
  * @title Members SBT
@@ -17,11 +18,11 @@ contract MembersSBT {
     string public name;
     string public symbol;
 
-    // Default avatar image (base64 encoded SVG - simple avatar placeholder)
-    string public constant DEFAULT_AVATAR = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAwIiBjeT0iODAiIHI9IjQwIiBmaWxsPSIjNjY3ZWVhIi8+PHBhdGggZD0iTTEwMCwxMzBjLTQwLDAuNS04MCwyMC04MCw1MHYyMGgxNjB2LTIwQzE4MCwxNTAsMTQwLDEzMC41LDEwMCwxMzB6IiBmaWxsPSIjNjY3ZWVhIi8+PC9zdmc+";
-
     // Owner of the contract
     address public owner;
+
+    // Renderer contract for SVG generation
+    IMemberCardRenderer public renderer;
 
     // Total supply counter
     uint256 public totalSupply;
@@ -51,6 +52,7 @@ contract MembersSBT {
     event Burn(uint256 indexed tokenId);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event UserInfoUpdated(address indexed user, string memberName, string discordId, string avatarImage);
+    event RendererUpdated(address indexed oldRenderer, address indexed newRenderer);
 
     // Modifiers
     modifier onlyOwner() {
@@ -67,12 +69,16 @@ contract MembersSBT {
      * @dev Constructor sets the original owner of the contract
      * @param _name The name of the token
      * @param _symbol The symbol of the token
+     * @param _renderer The initial renderer contract address
      */
-    constructor(string memory _name, string memory _symbol) {
+    constructor(string memory _name, string memory _symbol, address _renderer) {
+        require(_renderer != address(0), "Renderer cannot be zero address");
         name = _name;
         symbol = _symbol;
         owner = msg.sender;
+        renderer = IMemberCardRenderer(_renderer);
         emit OwnershipTransferred(address(0), msg.sender);
+        emit RendererUpdated(address(0), _renderer);
     }
 
     /**
@@ -213,9 +219,9 @@ contract MembersSBT {
         string memory avatarImage
     ) {
         UserInfo memory info = _userInfo[user];
-        // Return default avatar if avatarImage is empty
+        // Return default avatar from renderer if avatarImage is empty
         if (bytes(info.avatarImage).length == 0) {
-            return (info.memberName, info.discordId, DEFAULT_AVATAR);
+            return (info.memberName, info.discordId, renderer.getDefaultAvatar());
         }
         return (info.memberName, info.discordId, info.avatarImage);
     }
@@ -284,72 +290,15 @@ contract MembersSBT {
     }
 
     /**
-     * @notice Generate SVG image for the member card
-     * @param tokenId The token ID
-     * @return The SVG image as a string
+     * @notice Set the renderer contract address
+     * @param newRenderer The new renderer contract address
+     * @dev Only contract owner can set the renderer
      */
-    function _generateSVG(uint256 tokenId) private view returns (string memory) {
-        address tokenOwner = _owners[tokenId];
-        UserInfo memory info = _userInfo[tokenOwner];
-
-        // Get avatar image (use default if not set)
-        string memory avatarImage = bytes(info.avatarImage).length > 0 ? info.avatarImage : DEFAULT_AVATAR;
-
-        // Convert address to string (shortened format)
-        string memory addrStr = _toHexString(uint256(uint160(tokenOwner)), 20);
-        string memory shortAddr = string(abi.encodePacked(
-            _substring(addrStr, 0, 6),
-            "...",
-            _substring(addrStr, 36, 42)
-        ));
-
-        // Convert tokenId to string
-        string memory tokenIdStr = _toString(tokenId);
-
-        // Generate SVG
-        return string(abi.encodePacked(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="350" viewBox="0 0 600 350">',
-            '<defs>',
-                '<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">',
-                    '<stop offset="0%" style="stop-color:#667eea"/>',
-                    '<stop offset="100%" style="stop-color:#764ba2"/>',
-                '</linearGradient>',
-                '<filter id="shadow">',
-                    '<feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.25"/>',
-                '</filter>',
-            '</defs>',
-            '<rect width="600" height="350" rx="20" fill="url(#bg)"/>',
-            '<rect x="20" y="20" width="560" height="310" rx="15" fill="white" fill-opacity="0.95" filter="url(#shadow)"/>',
-
-            // Left side - Avatar and basic info
-            '<image x="50" y="75" width="120" height="120" href="', avatarImage, '" clip-path="inset(0% round 50%)"/>',
-            '<text x="110" y="225" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333">',
-                bytes(info.memberName).length > 0 ? info.memberName : "Anonymous",
-            '</text>',
-            '<text x="110" y="250" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#666">',
-                bytes(info.discordId).length > 0 ? info.discordId : "Not Set",
-            '</text>',
-
-            // Vertical divider
-            '<rect x="220" y="50" width="1" height="250" fill="#e0e0e0"/>',
-
-            // Right side - Card info
-            '<text x="400" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#333">', name, '</text>',
-
-            '<text x="260" y="130" font-family="Arial, sans-serif" font-size="14" fill="#666">Token ID</text>',
-            '<text x="540" y="130" text-anchor="end" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333">#', tokenIdStr, '</text>',
-
-            '<text x="260" y="170" font-family="Arial, sans-serif" font-size="14" fill="#666">Owner</text>',
-            '<text x="540" y="170" text-anchor="end" font-family="monospace" font-size="12" fill="#333">', shortAddr, '</text>',
-
-            '<text x="260" y="210" font-family="Arial, sans-serif" font-size="14" fill="#666">Type</text>',
-            '<text x="540" y="210" text-anchor="end" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#667eea">Soul Bound</text>',
-
-            // Bottom banner
-            '<rect x="240" y="250" width="320" height="50" rx="25" fill="#667eea"/>',
-            '<text x="400" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">Community Member</text>',
-            '</svg>'
-        ));
+    function setRenderer(address newRenderer) external onlyOwner {
+        require(newRenderer != address(0), "Renderer cannot be zero address");
+        address oldRenderer = address(renderer);
+        renderer = IMemberCardRenderer(newRenderer);
+        emit RendererUpdated(oldRenderer, newRenderer);
     }
 
     /**
@@ -363,7 +312,15 @@ contract MembersSBT {
         address tokenOwner = _owners[tokenId];
         UserInfo memory info = _userInfo[tokenOwner];
 
-        string memory svg = _generateSVG(tokenId);
+        // Call external renderer to generate SVG
+        string memory svg = renderer.generateSVG(
+            tokenId,
+            tokenOwner,
+            info.memberName,
+            info.discordId,
+            info.avatarImage,
+            name
+        );
         string memory svgBase64 = Base64.encode(bytes(svg));
 
         // Create JSON metadata
@@ -426,36 +383,4 @@ contract MembersSBT {
         }
         return string(buffer);
     }
-
-    /**
-     * @dev Convert address to hex string
-     */
-    function _toHexString(uint256 value, uint256 length) private pure returns (string memory) {
-        bytes memory buffer = new bytes(2 * length + 2);
-        buffer[0] = "0";
-        buffer[1] = "x";
-        for (uint256 i = 2 * length + 1; i > 1; --i) {
-            buffer[i] = _HEX_SYMBOLS[value & 0xf];
-            value >>= 4;
-        }
-        require(value == 0, "Strings: hex length insufficient");
-        return string(buffer);
-    }
-
-    /**
-     * @dev Get substring of a string
-     */
-    function _substring(string memory str, uint256 startIndex, uint256 endIndex) private pure returns (string memory) {
-        bytes memory strBytes = bytes(str);
-        bytes memory result = new bytes(endIndex - startIndex);
-        for (uint256 i = startIndex; i < endIndex; i++) {
-            result[i - startIndex] = strBytes[i];
-        }
-        return string(result);
-    }
-
-    /**
-     * @dev Hex symbols for address conversion
-     */
-    bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
 }
