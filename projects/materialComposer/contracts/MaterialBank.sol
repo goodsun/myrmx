@@ -20,6 +20,10 @@ contract materialBank {
 
     // 各タイプの現在の登録数を追跡
     mapping(string => uint8) public materialCount;
+    
+    // 登録されているタイプを追跡
+    string[] public materialTypes;
+    mapping(string => bool) private typeExists;
 
     // イベント
     event MaterialSet(string indexed materialType, uint8 indexed id, string name);
@@ -55,6 +59,12 @@ contract materialBank {
         string memory attribute,
         string memory image
     ) external onlyOwner notLocked validId(id) {
+        // 新しいタイプの場合、タイプリストに追加
+        if (!typeExists[materialType]) {
+            materialTypes.push(materialType);
+            typeExists[materialType] = true;
+        }
+        
         // 新規追加の場合、カウントを増加
         if (!materials[materialType][id].exists) {
             materialCount[materialType]++;
@@ -79,6 +89,11 @@ contract materialBank {
 
         delete materials[materialType][id];
         materialCount[materialType]--;
+        
+        // タイプ内の最後の素材を削除した場合、タイプも削除
+        if (materialCount[materialType] == 0) {
+            _removeType(materialType);
+        }
 
         emit MaterialDeleted(materialType, id);
     }
@@ -119,6 +134,41 @@ contract materialBank {
         }
 
         return ids;
+    }
+    
+    /**
+     * 登録されている全タイプを取得
+     */
+    function getAllTypes() external view returns (string[] memory) {
+        return materialTypes;
+    }
+    
+    /**
+     * タイプ数を取得
+     */
+    function getTypeCount() external view returns (uint256) {
+        return materialTypes.length;
+    }
+    
+    /**
+     * タイプをリストから削除（内部関数）
+     */
+    function _removeType(string memory materialType) private {
+        require(typeExists[materialType], "Type does not exist");
+        
+        // 配列から該当タイプを削除
+        uint256 length = materialTypes.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (keccak256(bytes(materialTypes[i])) == keccak256(bytes(materialType))) {
+                // 最後の要素を削除位置に移動して削除
+                materialTypes[i] = materialTypes[length - 1];
+                materialTypes.pop();
+                break;
+            }
+        }
+        
+        // 存在フラグを削除
+        delete typeExists[materialType];
     }
 
     /**
@@ -164,6 +214,12 @@ contract materialBank {
 
             if (!materials[types[i]][ids[i]].exists) {
                 materialCount[types[i]]++;
+            }
+
+            // 新しいタイプの場合、タイプリストに追加
+            if (!typeExists[types[i]]) {
+                materialTypes.push(types[i]);
+                typeExists[types[i]] = true;
             }
 
             materials[types[i]][ids[i]] = Material({

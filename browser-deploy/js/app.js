@@ -2620,6 +2620,8 @@ function getPlaceholderForType(type) {
   if (type.includes("string")) return "Enter text";
   if (type.includes("bytes32")) return "0x... (64 hex chars)";
   if (type.includes("bytes")) return "0x...";
+  if (type.startsWith("tuple[]")) return '[["value1", value2, ...], ["value1", value2, ...]] or [{"field1": "value1", ...}, {...}]';
+  if (type.startsWith("tuple")) return '["value1", value2, ...] or {"field1": "value1", "field2": value2, ...}';
   if (type.includes("[]")) return "[value1, value2, ...]";
   return `Enter ${type}`;
 }
@@ -2634,7 +2636,50 @@ function parseParameterValue(value, type) {
     return value;
   }
 
-  // Arrays
+  // Handle tuples (including nested tuples and tuple arrays)
+  if (type.startsWith("tuple")) {
+    try {
+      // Try parsing as JSON first
+      const parsed = JSON.parse(value);
+      
+      // If it's a tuple array
+      if (type.includes("[]")) {
+        if (!Array.isArray(parsed)) {
+          throw new Error("Tuple array must be an array");
+        }
+        
+        // For tuple[], we need to convert objects to arrays
+        return parsed.map(item => {
+          if (Array.isArray(item)) {
+            // Already in array format
+            return item;
+          } else if (typeof item === 'object' && item !== null) {
+            // Convert object to array based on property order
+            // This assumes properties are in the correct order
+            return Object.values(item);
+          }
+          return item;
+        });
+      } else {
+        // Single tuple
+        if (Array.isArray(parsed)) {
+          return parsed;
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          // Convert object to array
+          return Object.values(parsed);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse tuple:", e);
+      // If JSON parse fails, try to parse as comma-separated for simple tuples
+      if (!type.includes("[]") && value.includes(",")) {
+        return value.split(",").map(v => v.trim());
+      }
+      throw new Error(`Invalid tuple format. Please use JSON format: ${type.includes("[]") ? '[{...}, {...}]' : '{...} or [...]'}`);
+    }
+  }
+
+  // Arrays (non-tuple)
   if (type.includes("[]")) {
     try {
       const parsed = JSON.parse(value);
