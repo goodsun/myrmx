@@ -1,174 +1,165 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./libraries/Base64.sol";
-import "./banks/monster/MonsterBank.sol";
-import "./banks/BackgroundBank.sol";
-import "./banks/item/ItemBank.sol";
-import "./banks/effect/EffectBank.sol";
-import "./interfaces/IBackgroundBank.sol";
-import "./interfaces/IEffectBank.sol";
+import "./IMaterialBank.sol";
 
-/**
- * @title MaterialComposer
- * @notice Composes SVGs with synergy-based item transformations
- * @dev Transforms Amulet(9)->Head(10) and Shoulder(8)->Arm(11) during synergies
- */
-contract MaterialComposer {
-    IMonsterBank public monsterBank;
-    IBackgroundBank public backgroundBank;
-    IItemBank public itemBank;
-    IEffectBank public effectBank;
-
-    // Filter parameters for each background
-    mapping(uint8 => uint16[3]) private _filterParams;
-
-    constructor(
-        address _monsterBank,
-        address _backgroundBank,
-        address _itemBank,
-        address _effectBank
-    ) {
-        monsterBank = IMonsterBank(_monsterBank);
-        backgroundBank = IBackgroundBank(_backgroundBank);
-        itemBank = IItemBank(_itemBank);
-        effectBank = IEffectBank(_effectBank);
-
-        // Initialize color filters based on DESIGN.md
-        _initializeFilterParams();
+interface IMaterialComposer {
+    struct Layer {
+        string materialType;
+        uint8 materialId;
+        string filter;
+        uint8 opacity;
+        string transform;
     }
 
-    function _initializeFilterParams() private {
-        // Bloodmoon - red tones
-        _filterParams[0] = [uint16(0), uint16(120), uint16(100)];    // hue=0 (red), high saturation
-
-        // Abyss - deep blue
-        _filterParams[1] = [uint16(240), uint16(100), uint16(80)];   // hue=240 (blue), dark
-
-        // Decay - sickly green
-        _filterParams[2] = [uint16(90), uint16(80), uint16(70)];     // hue=90 (yellow-green), desaturated
-
-        // Corruption - purple
-        _filterParams[3] = [uint16(270), uint16(100), uint16(90)];   // hue=270 (purple)
-
-        // Venom - pink-purple
-        _filterParams[4] = [uint16(300), uint16(100), uint16(100)];  // hue=300 (magenta)
-
-        // Void - dark purple
-        _filterParams[5] = [uint16(260), uint16(60), uint16(50)];    // hue=260 (dark purple), very dark
-
-        // Inferno - flame colors
-        _filterParams[6] = [uint16(20), uint16(150), uint16(120)];   // hue=20 (orange), oversaturated
-
-        // Frost - ice blue
-        _filterParams[7] = [uint16(195), uint16(100), uint16(110)];  // hue=195 (cyan), bright
-
-        // Ragnarok - golden
-        _filterParams[8] = [uint16(45), uint16(120), uint16(110)];   // hue=45 (gold), bright
-
-        // Shadow - grayscale
-        _filterParams[9] = [uint16(0), uint16(0), uint16(70)];       // no hue, desaturated, dark
+    struct CompositionRule {
+        string name;
+        uint256 width;
+        uint256 height;
+        string viewBox;
+        string background;
     }
 
     function composeSVG(
-        uint8 species,
-        uint8 background,
-        uint8 item,
-        uint8 effect
-    ) external view returns (string memory) {
-        // Check for synergies that transform items
-        uint8 displayItem = getDisplayItem(species, item);
+        Layer[] memory layers,
+        CompositionRule memory rule
+    ) external view returns (string memory);
 
-        return composeSVGWithSynergy(species, background, displayItem, effect);
+    function composeSVGWithFilters(
+        Layer[] memory layers,
+        CompositionRule memory rule,
+        string[] memory customFilters
+    ) external view returns (string memory);
+}
+
+contract MaterialComposer is IMaterialComposer {
+    IMaterialBank public materialBank;
+    address public owner;
+
+    mapping(string => string) public filters;
+    mapping(string => mapping(string => string)) public transformRules;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
     }
 
-    function composeSVGWithSynergy(
-        uint8 species,
-        uint8 background,
-        uint8 displayItem,
-        uint8 effect
-    ) public view returns (string memory) {
-        string memory svg = '<svg width="768" height="768" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">';
+    constructor(address _materialBank) {
+        materialBank = IMaterialBank(_materialBank);
+        owner = msg.sender;
+        _initializeDefaultFilters();
+    }
 
-        // Add filter definition for monster color adjustment (only applied to monster)
-        uint16[3] memory params = _filterParams[background];
-        uint16 hue = params[0];
-        uint16 sat = params[1];
-        uint16 bright = params[2];
-        svg = string(abi.encodePacked(svg,
-            '<defs><filter id="colorFilter">',
-            '<feColorMatrix type="hueRotate" values="', toString(hue), '"/>',
-            '<feColorMatrix type="saturate" values="', toString(sat / 100), '.', toString(sat % 100), '"/>',
-            '<feComponentTransfer><feFuncA type="discrete" tableValues="0 1"/><feFuncR type="linear" slope="',
-            toString(bright / 100), '.', toString(bright % 100), '"/><feFuncG type="linear" slope="',
-            toString(bright / 100), '.', toString(bright % 100), '"/><feFuncB type="linear" slope="',
-            toString(bright / 100), '.', toString(bright % 100), '"/></feComponentTransfer>',
-            '</filter></defs>'
+    function _initializeDefaultFilters() private {
+        filters["grayscale"] = '<filter id="grayscale"><feColorMatrix type="saturate" values="0"/></filter>';
+        filters["blur"] = '<filter id="blur"><feGaussianBlur stdDeviation="2"/></filter>';
+        filters["brightness"] = '<filter id="brightness"><feComponentTransfer><feFuncA type="linear" slope="1.5"/></feComponentTransfer></filter>';
+        filters["sepia"] = '<filter id="sepia"><feColorMatrix values="0.393 0.769 0.189 0 0 0.349 0.686 0.168 0 0 0.272 0.534 0.131 0 0 0 0 0 1 0"/></filter>';
+    }
+
+    function setFilter(string memory name, string memory filterDef) external onlyOwner {
+        filters[name] = filterDef;
+    }
+
+    function setTransformRule(
+        string memory materialType,
+        string memory ruleName,
+        string memory transform
+    ) external onlyOwner {
+        transformRules[materialType][ruleName] = transform;
+    }
+
+    function composeSVG(
+        Layer[] memory layers,
+        CompositionRule memory rule
+    ) external view returns (string memory) {
+        return _compose(layers, rule, new string[](0));
+    }
+
+    function composeSVGWithFilters(
+        Layer[] memory layers,
+        CompositionRule memory rule,
+        string[] memory customFilters
+    ) external view returns (string memory) {
+        return _compose(layers, rule, customFilters);
+    }
+
+    function _compose(
+        Layer[] memory layers,
+        CompositionRule memory rule,
+        string[] memory customFilters
+    ) private view returns (string memory) {
+        string memory svg = string(abi.encodePacked(
+            '<svg width="', _toString(rule.width),
+            '" height="', _toString(rule.height),
+            '" viewBox="', rule.viewBox,
+            '" xmlns="http://www.w3.org/2000/svg">'
         ));
 
-        // Layer 1: Background (from Arweave URL)
-        string memory bgSvg = backgroundBank.getBackgroundSVG(background);
-        // Embed background SVG as data URI
-        string memory bgDataUri = svgToBase64DataUri(bgSvg);
-        svg = string(abi.encodePacked(svg,
-            '<image href="', bgDataUri, '" x="0" y="0" width="48" height="48"/>'
-        ));
+        if (bytes(rule.background).length > 0) {
+            svg = string(abi.encodePacked(
+                svg,
+                '<rect width="100%" height="100%" fill="', rule.background, '"/>'
+            ));
+        }
 
-        // Layer 2: Monster with color filter (from on-chain SVG)
-        string memory monsterSvg = monsterBank.getMonsterSVG(species);
-        string memory monsterDataUri = svgToBase64DataUri(monsterSvg);
-        svg = string(abi.encodePacked(svg,
-            '<image href="', monsterDataUri,
-            '" x="0" y="0" width="48" height="48" filter="url(#colorFilter)"/>'
-        ));
+        svg = string(abi.encodePacked(svg, '<defs>'));
+        
+        for (uint i = 0; i < customFilters.length; i++) {
+            svg = string(abi.encodePacked(svg, customFilters[i]));
+        }
 
-        // Layer 3: Item WITHOUT filter (from on-chain SVG)
-        string memory itemSvg = itemBank.getItemSVG(displayItem);
-        string memory itemDataUri = svgToBase64DataUri(itemSvg);
-        svg = string(abi.encodePacked(svg,
-            '<image href="', itemDataUri,
-            '" x="0" y="0" width="48" height="48"/>'
-        ));
+        for (uint i = 0; i < layers.length; i++) {
+            if (bytes(layers[i].filter).length > 0 && bytes(filters[layers[i].filter]).length > 0) {
+                svg = string(abi.encodePacked(svg, filters[layers[i].filter]));
+            }
+        }
 
-        // Layer 4: Effect (from Arweave URL)
-        string memory effectSvg = effectBank.getEffectSVG(effect);
-        // Embed effect SVG as data URI
-        string memory effectDataUri = svgToBase64DataUri(effectSvg);
-        svg = string(abi.encodePacked(svg,
-            '<image href="', effectDataUri, '" x="0" y="0" width="48" height="48"/>'
-        ));
+        svg = string(abi.encodePacked(svg, '</defs>'));
+
+        for (uint i = 0; i < layers.length; i++) {
+            svg = string(abi.encodePacked(svg, _renderLayer(layers[i])));
+        }
 
         svg = string(abi.encodePacked(svg, '</svg>'));
-
         return svg;
     }
 
-    function getDisplayItem(uint8 species, uint8 item) public pure returns (uint8) {
-        // Check for Werewolf + Amulet synergy
-        if (species == 0 && item == 9) { // Werewolf + Amulet
-            return 10; // Transform to Head
+    function _renderLayer(Layer memory layer) private view returns (string memory) {
+        (,,string memory image) = materialBank.getMaterial(layer.materialType, layer.materialId);
+        
+        string memory dataUri = _svgToBase64DataUri(image);
+        
+        string memory element = '<image href="';
+        element = string(abi.encodePacked(element, dataUri, '" width="100%" height="100%"'));
+
+        if (bytes(layer.filter).length > 0) {
+            element = string(abi.encodePacked(element, ' filter="url(#', layer.filter, ')"'));
         }
 
-        // Check for Frankenstein + Shoulder synergy
-        if (species == 2 && item == 8) { // Frankenstein + Shoulder
-            return 11; // Transform to Arm
+        if (layer.opacity < 100) {
+            element = string(abi.encodePacked(element, ' opacity="', _toString(layer.opacity), '%"'));
         }
 
-        // No transformation
-        return item;
+        string memory transform = transformRules[layer.materialType][layer.transform];
+        if (bytes(transform).length > 0) {
+            element = string(abi.encodePacked(element, ' transform="', transform, '"'));
+        } else if (bytes(layer.transform).length > 0) {
+            element = string(abi.encodePacked(element, ' transform="', layer.transform, '"'));
+        }
+
+        element = string(abi.encodePacked(element, '/>'));
+        return element;
     }
 
-    function svgToBase64DataUri(string memory svg) public pure returns (string memory) {
-        string memory base64 = Base64.encode(bytes(svg));
-        return string(abi.encodePacked("data:image/svg+xml;base64,", base64));
+    function _svgToBase64DataUri(string memory svg) private pure returns (string memory) {
+        return string(abi.encodePacked(
+            "data:image/svg+xml;base64,",
+            Base64.encode(bytes(svg))
+        ));
     }
 
-    // Add getter that returns the full tuple as expected by ITragedyComposer
-    function filterParams(uint8 background) external view returns (uint16, uint16, uint16) {
-        return (_filterParams[background][0], _filterParams[background][1], _filterParams[background][2]);
-    }
-
-    function toString(uint256 value) internal pure returns (string memory) {
+    function _toString(uint256 value) private pure returns (string memory) {
         if (value == 0) {
             return "0";
         }
@@ -185,5 +176,51 @@ contract MaterialComposer {
             value /= 10;
         }
         return string(buffer);
+    }
+}
+
+library Base64 {
+    string internal constant _TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    function encode(bytes memory data) internal pure returns (string memory) {
+        if (data.length == 0) return "";
+        
+        string memory table = _TABLE;
+        string memory result = new string(4 * ((data.length + 2) / 3));
+        
+        assembly {
+            let tablePtr := add(table, 1)
+            let resultPtr := add(result, 32)
+            
+            for {
+                let dataPtr := data
+                let endPtr := add(data, mload(data))
+            } lt(dataPtr, endPtr) {
+            } {
+                dataPtr := add(dataPtr, 3)
+                let input := mload(dataPtr)
+                
+                mstore8(resultPtr, mload(add(tablePtr, and(shr(18, input), 0x3F))))
+                resultPtr := add(resultPtr, 1)
+                mstore8(resultPtr, mload(add(tablePtr, and(shr(12, input), 0x3F))))
+                resultPtr := add(resultPtr, 1)
+                mstore8(resultPtr, mload(add(tablePtr, and(shr(6, input), 0x3F))))
+                resultPtr := add(resultPtr, 1)
+                mstore8(resultPtr, mload(add(tablePtr, and(input, 0x3F))))
+                resultPtr := add(resultPtr, 1)
+            }
+            
+            switch mod(mload(data), 3)
+            case 1 {
+                mstore(sub(resultPtr, 2), shl(240, 0x3d3d))
+            }
+            case 2 {
+                mstore(sub(resultPtr, 1), shl(248, 0x3d))
+            }
+            
+            mstore(result, sub(resultPtr, add(result, 32)))
+        }
+        
+        return result;
     }
 }
