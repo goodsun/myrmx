@@ -10,12 +10,13 @@ interface IMaterialComposer {
         string filter;
         uint8 opacity;
         string transform;
+        string animation;
     }
 
     struct CompositionRule {
         string name;
-        uint256 width;
-        uint256 height;
+        string width;
+        string height;
         string viewBox;
         string background;
     }
@@ -57,6 +58,11 @@ contract MaterialComposer is IMaterialComposer {
         filters["sepia"] = '<filter id="sepia"><feColorMatrix values="0.393 0.769 0.189 0 0 0.349 0.686 0.168 0 0 0.272 0.534 0.131 0 0 0 0 0 1 0"/></filter>';
     }
 
+    function setMaterialBank(address _materialBank) external onlyOwner {
+        require(_materialBank != address(0), "Invalid address");
+        materialBank = IMaterialBank(_materialBank);
+    }
+
     function setFilter(string memory name, string memory filterDef) external onlyOwner {
         filters[name] = filterDef;
     }
@@ -89,10 +95,19 @@ contract MaterialComposer is IMaterialComposer {
         CompositionRule memory rule,
         string[] memory customFilters
     ) private view returns (string memory) {
-        string memory svg = string(abi.encodePacked(
-            '<svg width="', _toString(rule.width),
-            '" height="', _toString(rule.height),
-            '" viewBox="', rule.viewBox,
+        string memory svg = '<svg';
+        
+        if (bytes(rule.width).length > 0) {
+            svg = string(abi.encodePacked(svg, ' width="', rule.width, '"'));
+        }
+        
+        if (bytes(rule.height).length > 0) {
+            svg = string(abi.encodePacked(svg, ' height="', rule.height, '"'));
+        }
+        
+        svg = string(abi.encodePacked(
+            svg,
+            ' viewBox="', rule.viewBox,
             '" xmlns="http://www.w3.org/2000/svg">'
         ));
 
@@ -130,8 +145,25 @@ contract MaterialComposer is IMaterialComposer {
         
         string memory dataUri = _svgToBase64DataUri(image);
         
-        string memory element = '<image href="';
-        element = string(abi.encodePacked(element, dataUri, '" width="100%" height="100%"'));
+        string memory element = '<g';
+        
+        string memory transform = transformRules[layer.materialType][layer.transform];
+        if (bytes(transform).length > 0) {
+            element = string(abi.encodePacked(element, ' transform="', transform, '"'));
+        } else if (bytes(layer.transform).length > 0) {
+            element = string(abi.encodePacked(element, ' transform="', layer.transform, '"'));
+        }
+        
+        element = string(abi.encodePacked(element, '>'));
+        
+        if (bytes(layer.animation).length > 0) {
+            element = string(abi.encodePacked(element, layer.animation));
+        }
+        
+        element = string(abi.encodePacked(
+            element,
+            '<image href="', dataUri, '" width="100%" height="100%"'
+        ));
 
         if (bytes(layer.filter).length > 0) {
             element = string(abi.encodePacked(element, ' filter="url(#', layer.filter, ')"'));
@@ -141,14 +173,7 @@ contract MaterialComposer is IMaterialComposer {
             element = string(abi.encodePacked(element, ' opacity="', _toString(layer.opacity), '%"'));
         }
 
-        string memory transform = transformRules[layer.materialType][layer.transform];
-        if (bytes(transform).length > 0) {
-            element = string(abi.encodePacked(element, ' transform="', transform, '"'));
-        } else if (bytes(layer.transform).length > 0) {
-            element = string(abi.encodePacked(element, ' transform="', layer.transform, '"'));
-        }
-
-        element = string(abi.encodePacked(element, '/>'));
+        element = string(abi.encodePacked(element, '/></g>'));
         return element;
     }
 
