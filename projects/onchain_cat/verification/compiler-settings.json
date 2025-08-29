@@ -1,0 +1,26 @@
+{
+  "compilerType": "Solidity (Standard-Json-Input)",
+  "compilerVersion": "v0.8.20+commit.a1b79de6",
+  "evmVersion": "paris",
+  "optimization": {
+    "enabled": true,
+    "runs": 200
+  },
+  "license": {
+    "type": "MIT",
+    "spdxIdentifier": "MIT"
+  },
+  "verificationSettings": {
+    "platform": "Etherscan/Polygonscan",
+    "apiEndpoints": {
+      "mainnet": "https://api.etherscan.io/api",
+      "polygon": "https://api.polygonscan.com/api",
+      "polygonMumbai": "https://api-testnet.polygonscan.com/api"
+    }
+  },
+  "notes": {
+    "compilerVersionNote": "The exact version will be determined at compile time. Check artifacts for precise version.",
+    "licenseNote": "All contracts use MIT license as specified in SPDX headers",
+    "standardJsonInput": "Use the artifacts' metadata for the full Standard JSON Input"
+  }
+}

@@ -8,6 +8,20 @@ module.exports = {
       optimizer: {
         enabled: true,
         runs: 200
+      },
+      outputSelection: {
+        "*": {
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ],
+          "": [
+            "ast"
+          ]
+        }
       }
     }
   },

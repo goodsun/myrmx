@@ -1,0 +1,10 @@
+{
+  "description": "Constructor arguments for contract deployment",
+  "arguments": [
+    {
+      "name": "_catMetadata",
+      "type": "address",
+      "value": "<address value>"
+    }
+  ]
+}

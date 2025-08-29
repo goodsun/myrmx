@@ -1,0 +1,20 @@
+{
+  "description": "Constructor arguments for contract deployment",
+  "arguments": [
+    {
+      "name": "_backBank1",
+      "type": "address",
+      "value": "<address value>"
+    },
+    {
+      "name": "_backBank2",
+      "type": "address",
+      "value": "<address value>"
+    },
+    {
+      "name": "_backBank3",
+      "type": "address",
+      "value": "<address value>"
+    }
+  ]
+}

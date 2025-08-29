@@ -1,0 +1,200 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_backBank",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_mainBank",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_itemBank",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_frontBank",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "SHUFFLE_SEED",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "TOTAL_SUPPLY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "backBank",
+    "outputs": [
+      {
+        "internalType": "contract BackBank",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "composeSVG",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "frontBank",
+    "outputs": [
+      {
+        "internalType": "contract FrontBank",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAttributeNames",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "backName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "mainName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "itemName",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "frontName",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCatAttributes",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "backId",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "mainId",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "itemId",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "frontId",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct CatComposer.CatAttributes",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "itemBank",
+    "outputs": [
+      {
+        "internalType": "contract ItemBank",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "mainBank",
+    "outputs": [
+      {
+        "internalType": "contract MainBank",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

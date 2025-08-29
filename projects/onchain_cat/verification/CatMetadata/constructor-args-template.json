@@ -1,0 +1,10 @@
+{
+  "description": "Constructor arguments for contract deployment",
+  "arguments": [
+    {
+      "name": "_catComposer",
+      "type": "address",
+      "value": "<address value>"
+    }
+  ]
+}
