@@ -1,6 +1,7 @@
 const hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
+const deployConfig = require("./deploy-config");
 
 async function deployBankContracts() {
   console.log("Starting bank contracts deployment...");
@@ -41,7 +42,15 @@ async function deployBankContracts() {
 
 async function deployContract(contractName) {
   const Contract = await hre.ethers.getContractFactory(contractName);
-  const contract = await Contract.deploy();
+  
+  // Get gas settings for this contract
+  const gasSettings = deployConfig.contractGasOverrides[contractName] || deployConfig.defaultGasSettings;
+  
+  console.log(`Deploying ${contractName} with gas limit: ${gasSettings.gasLimit.toLocaleString()}`);
+  
+  const contract = await Contract.deploy({
+    gasLimit: gasSettings.gasLimit
+  });
   await contract.waitForDeployment();
   const address = await contract.getAddress();
   

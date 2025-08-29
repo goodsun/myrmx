@@ -27,10 +27,19 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      chainId: 1337
+      chainId: 1337,
+      gas: 30000000, // 30M gas limit
+      blockGasLimit: 30000000,
+      allowUnlimitedContractSize: true
     },
     localhost: {
-      url: "http://127.0.0.1:8545"
+      url: "http://127.0.0.1:8545",
+      gas: 30000000, // 30M gas limit
+      blockGasLimit: 30000000
     }
+  },
+  gasReporter: {
+    enabled: true,
+    currency: 'USD'
   }
 };
