@@ -12,3 +12,31 @@ artifacts
 # Editor
 .vscode
 .idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Deployment
+deployments/localhost
+deployments/hardhat
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+package-lock.json
+yarn.lock
+
+# Testing
+test-results
+.nyc_output
+
+# Build outputs
+dist
+build
+out
