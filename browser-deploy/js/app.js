@@ -1389,6 +1389,72 @@ function parseInputValue(value, type) {
   return value;
 }
 
+// Helper functions for base64 data formatting
+function formatBase64JsonResult(dataUri) {
+  try {
+    const base64 = dataUri.replace("data:application/json;base64,", "");
+    const jsonStr = atob(base64);
+    const metadata = JSON.parse(jsonStr);
+    
+    let html = '<div class="space-y-2">';
+    
+    // Check if it's NFT metadata
+    if (metadata.name && metadata.image) {
+      html += `<div class="font-semibold">${metadata.name}</div>`;
+      
+      if (metadata.description) {
+        html += `<div class="text-sm text-gray-600">${metadata.description}</div>`;
+      }
+      
+      // Display image if it's SVG
+      if (metadata.image && metadata.image.startsWith("data:image/svg+xml;base64,")) {
+        const svgBase64 = metadata.image.replace("data:image/svg+xml;base64,", "");
+        const svg = atob(svgBase64);
+        html += `<div class="mt-2 p-2 bg-gray-100 rounded">
+          <div style="width: 200px; height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <img src="${metadata.image}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+          </div>
+        </div>`;
+      }
+      
+      // Display attributes
+      if (metadata.attributes && metadata.attributes.length > 0) {
+        html += '<div class="mt-2"><div class="text-sm font-semibold">Attributes:</div>';
+        html += '<div class="grid grid-cols-2 gap-1 text-sm mt-1">';
+        metadata.attributes.forEach(attr => {
+          html += `<div><span class="text-gray-600">${attr.trait_type}:</span> ${attr.value}</div>`;
+        });
+        html += '</div></div>';
+      }
+    } else {
+      // Generic JSON display
+      html += `<pre class="text-xs overflow-auto bg-gray-100 p-2 rounded">${JSON.stringify(metadata, null, 2)}</pre>`;
+    }
+    
+    html += '</div>';
+    return html;
+  } catch (error) {
+    console.error("Failed to decode base64 JSON:", error);
+    return `<span class="text-xs text-gray-500">${dataUri.substring(0, 50)}...</span>`;
+  }
+}
+
+function formatBase64SvgResult(dataUri) {
+  try {
+    const base64 = dataUri.replace("data:image/svg+xml;base64,", "");
+    const svg = atob(base64);
+    
+    return `<div class="p-2 bg-gray-100 rounded">
+      <div style="width: 200px; height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <img src="${dataUri}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+      </div>
+    </div>`;
+  } catch (error) {
+    console.error("Failed to decode base64 SVG:", error);
+    return `<span class="text-xs text-gray-500">${dataUri.substring(0, 50)}...</span>`;
+  }
+}
+
 // Format result for display
 function formatResult(result) {
   if (result === null || result === undefined) {
@@ -1398,7 +1464,16 @@ function formatResult(result) {
   } else if (typeof result === "object") {
     return JSON.stringify(result, null, 2);
   }
-  return result.toString();
+  
+  // Check for base64 encoded data
+  const resultStr = result.toString();
+  if (resultStr.startsWith("data:application/json;base64,")) {
+    return formatBase64JsonResult(resultStr);
+  } else if (resultStr.startsWith("data:image/svg+xml;base64,")) {
+    return formatBase64SvgResult(resultStr);
+  }
+  
+  return resultStr;
 }
 
 // Switch between tabs
@@ -1611,6 +1686,73 @@ function removeSharedContract(index) {
 // Expose removeSharedContract globally for onclick handler
 window.removeSharedContract = removeSharedContract;
 
+// Function to remove a deployed contract from history
+async function removeDeployedContract(contractName) {
+  try {
+    if (!confirm(`Remove ${contractName} from deployment history?\n\nThis will allow you to redeploy this contract.`)) {
+      return;
+    }
+
+    // Remove from window.deployedContracts
+    if (window.deployedContracts && window.deployedContracts[contractName]) {
+      delete window.deployedContracts[contractName];
+    }
+
+    // Remove from deployedAddresses
+    if (deployedAddresses[contractName]) {
+      delete deployedAddresses[contractName];
+    }
+
+    // Update localStorage
+    const projectName = document.getElementById("projectSelect").value;
+    if (projectName) {
+      const storageKey = `deployedContracts_${projectName}`;
+      localStorage.setItem(storageKey, JSON.stringify(window.deployedContracts));
+    }
+
+    // Get network ID
+    let networkId = 'unknown';
+    if (provider) {
+      try {
+        const network = await provider.getNetwork();
+        networkId = network.chainId;
+      } catch (e) {
+        console.error('Failed to get network ID:', e);
+      }
+    }
+
+    // Update server-side deployed-addresses file
+    const response = await fetch(`/api/projects/${projectName}/save-deployed-addresses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        networkId: networkId,
+        addresses: window.deployedContracts
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update deployed addresses on server');
+    }
+
+    // Re-render deployment steps
+    await checkDeployedAddresses();
+    if (deploymentConfig) {
+      renderDeploymentSteps();
+    }
+
+    showMessage(`${contractName} removed from deployment history`, "info");
+  } catch (error) {
+    console.error("Failed to remove deployed contract:", error);
+    showMessage(`Failed to remove ${contractName}: ${error.message}`, "error");
+  }
+}
+
+// Expose removeDeployedContract globally for onclick handler
+window.removeDeployedContract = removeDeployedContract;
+
 // Complex deployment support
 let deploymentConfig = null;
 let deployedAddresses = {};
@@ -1755,7 +1897,7 @@ async function checkDeployedAddresses() {
         deployedList.innerHTML = Object.entries(deployedAddresses)
           .map(
             ([name, address]) => `
-            <div class="flex justify-between items-center">
+            <div class="flex justify-between items-center group hover:bg-gray-50 p-1 rounded">
               <span class="font-mono">${name}:</span>
               <div class="flex items-center gap-2">
                 <span class="text-gray-600">${address.slice(
@@ -1763,6 +1905,11 @@ async function checkDeployedAddresses() {
                   6
                 )}...${address.slice(-4)}</span>
                 <button onclick="copyAddress('${address}')" class="text-blue-500 hover:text-blue-700" title="Copy address">📋</button>
+                <button onclick="removeDeployedContract('${name}')" 
+                        class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 text-lg leading-none px-1" 
+                        title="Remove ${name} from deployment history">
+                  ×
+                </button>
               </div>
             </div>
           `
@@ -2741,8 +2888,16 @@ function formatOutputValue(value, type) {
     return value;
   }
 
+  // Check for base64 encoded data
+  const valueStr = value.toString();
+  if (valueStr.startsWith("data:application/json;base64,")) {
+    return formatBase64JsonResult(valueStr);
+  } else if (valueStr.startsWith("data:image/svg+xml;base64,")) {
+    return formatBase64SvgResult(valueStr);
+  }
+
   // Default
-  return value.toString();
+  return valueStr;
 }
 
 async function checkInterfaceDirectory() {

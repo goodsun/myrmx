@@ -1,0 +1,166 @@
+{
+  "deploymentOrder": [
+    {
+      "step": 1,
+      "description": "Deploy Bank Contracts (Parallel)",
+      "contracts": [
+        {
+          "name": "BackBank1",
+          "contract": "BackBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "BackBank2",
+          "contract": "BackBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "BackBank3",
+          "contract": "BackBank3",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "MainBank1",
+          "contract": "MainBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "MainBank2",
+          "contract": "MainBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ItemBank1",
+          "contract": "ItemBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "ItemBank2",
+          "contract": "ItemBank2",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "FrontBank1",
+          "contract": "FrontBank1",
+          "constructorArgs": [],
+          "parallel": true
+        },
+        {
+          "name": "FrontBank2",
+          "contract": "FrontBank2",
+          "constructorArgs": [],
+          "parallel": true
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "description": "Deploy Aggregator Contracts",
+      "contracts": [
+        {
+          "name": "BackBank",
+          "contract": "BackBank",
+          "constructorArgs": [
+            { "ref": "BackBank1.address" },
+            { "ref": "BackBank2.address" },
+            { "ref": "BackBank3.address" }
+          ],
+          "parallel": false
+        },
+        {
+          "name": "MainBank",
+          "contract": "MainBank",
+          "constructorArgs": [
+            { "ref": "MainBank1.address" },
+            { "ref": "MainBank2.address" }
+          ],
+          "parallel": false
+        },
+        {
+          "name": "ItemBank",
+          "contract": "ItemBank",
+          "constructorArgs": [
+            { "ref": "ItemBank1.address" },
+            { "ref": "ItemBank2.address" }
+          ],
+          "parallel": false
+        },
+        {
+          "name": "FrontBank",
+          "contract": "FrontBank",
+          "constructorArgs": [
+            { "ref": "FrontBank1.address" },
+            { "ref": "FrontBank2.address" }
+          ],
+          "parallel": false
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "description": "Deploy Composer Contracts",
+      "contracts": [
+        {
+          "name": "CatComposer",
+          "contract": "CatComposer",
+          "constructorArgs": [
+            { "ref": "BackBank.address" },
+            { "ref": "MainBank.address" },
+            { "ref": "ItemBank.address" },
+            { "ref": "FrontBank.address" }
+          ],
+          "parallel": false
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "description": "Deploy Metadata Contract",
+      "contracts": [
+        {
+          "name": "CatMetadata",
+          "contract": "CatMetadata",
+          "constructorArgs": [
+            { "ref": "CatComposer.address" }
+          ],
+          "parallel": false
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "description": "Deploy NFT Contract",
+      "contracts": [
+        {
+          "name": "OnchainCats",
+          "contract": "OnchainCats",
+          "constructorArgs": [
+            { "ref": "CatMetadata.address" }
+          ],
+          "parallel": false
+        }
+      ]
+    }
+  ],
+  "networks": {
+    "localhost": {
+      "gasLimit": 8000000,
+      "gasPrice": "auto"
+    },
+    "goerli": {
+      "gasLimit": 8000000,
+      "gasPrice": "auto"
+    },
+    "mainnet": {
+      "gasLimit": 8000000,
+      "gasPrice": "auto"
+    }
+  }
+}
