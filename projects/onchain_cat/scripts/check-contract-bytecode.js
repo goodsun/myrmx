@@ -4,7 +4,9 @@ const path = require('path');
 const contracts = [
     'BackBank1',
     'BackBank2', 
-    'BackBank3'
+    'BackBank3',
+    'MainBank1',
+    'MainBank2'
 ];
 
 console.log('Contract Bytecode Analysis');
@@ -47,7 +49,7 @@ contracts.forEach(contract => {
 console.log('\nDetailed Analysis of Problematic Contracts:');
 console.log('='.repeat(50));
 
-['BackBank2', 'BackBank3'].forEach(contract => {
+['BackBank1', 'BackBank2', 'BackBank3', 'MainBank1', 'MainBank2'].forEach(contract => {
     const sourcePath = path.join(__dirname, `../contracts/banks/${contract}.sol`);
     const source = fs.readFileSync(sourcePath, 'utf8');
     
